@@ -11,7 +11,8 @@ import {
   getDepartments,
   getFacultyByDepartment,
   getSearchStats,
-  getFacultyById
+  getFacultyById,
+  filterFaculty
 
 
 } from "../controllers/facultyController.js";
@@ -28,6 +29,7 @@ router.get("/search-stats", getSearchStats);
 router.get("/popular-searches", getPopularSearches);
 router.get("/departments", getDepartments);
 router.get("/department/:department",getFacultyByDepartment);
+router.get("/filter", filterFaculty);
 
 
 

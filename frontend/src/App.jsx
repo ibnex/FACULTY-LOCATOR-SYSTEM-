@@ -1,10 +1,21 @@
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+
+import Home from "../pages/Home";
+import FacultyDetails from "../pages/FacultyDetails";
 
 function App() {
   return (
-    <>
-      <p className="text-2xl font-bold underline bg-amber-200">ibne </p>
-    </>
-  )
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Home />} />
+
+        <Route
+          path="/faculty/:id"
+          element={<FacultyDetails />}
+        />
+      </Routes>
+    </BrowserRouter>
+  );
 }
 
-export default App
+export default App;

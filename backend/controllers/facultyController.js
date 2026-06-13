@@ -35,13 +35,43 @@ export const scrapeFacultyData = async (req, res) => {
   }
 };
 
+// export const getAllFaculty = async (req, res) => {
+//   try {
+//     const faculties = await Faculty.find();
+
+//     res.status(200).json(faculties);
+//   } catch (error) {
+//     res.status(500).json({
+//       message: error.message,
+//     });
+//   }
+// };
+
 export const getAllFaculty = async (req, res) => {
   try {
-    const faculties = await Faculty.find();
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 20;
 
-    res.status(200).json(faculties);
+    const skip = (page - 1) * limit;
+
+    const total = await Faculty.countDocuments();
+
+    const faculty = await Faculty.find()
+      .skip(skip)
+      .limit(limit);
+
+    res.status(200).json({
+      success: true,
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+      count: faculty.length,
+      data: faculty,
+    });
   } catch (error) {
     res.status(500).json({
+      success: false,
       message: error.message,
     });
   }
@@ -312,6 +342,38 @@ export const getSearchStats = async (req, res) => {
         totalResultsReturned:
           totalResults.length > 0 ? totalResults[0].total : 0,
       },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+export const filterFaculty = async (req, res) => {
+  try {
+    const { department, designation } = req.query;
+
+    const filter = {};
+
+    if (department) {
+      filter.department = department;
+    }
+
+    if (designation) {
+      filter.designation = {
+        $regex: designation,
+        $options: "i",
+      };
+    }
+
+    const faculty = await Faculty.find(filter);
+
+    res.status(200).json({
+      success: true,
+      count: faculty.length,
+      data: faculty,
     });
   } catch (error) {
     res.status(500).json({
