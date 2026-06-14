@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState ,useRef } from "react";
 
 import SearchBar from "../components/SearchBar";
 import SearchOverlay from "../components/SearchOverlay";
 import PopularSearches from "../components/PopularSearches";
 import FacultyCard from "../components/FacultyCard";
 import FilterDrawer from "../components/FilterDrawer";
+
 
 import {
   getPopularSearches,
@@ -16,10 +17,22 @@ import {
 import { saveRecentSearch } from "../utils/localStorage";
 
 export default function Home() {
+  
+  const [loading, setLoading] = useState(true);
+
+  const [faculties, setFaculties] = useState([]);
+
+const [page, setPage] = useState(1);
+
+const [hasMore, setHasMore] = useState(true);
+
+const [loadingMore, setLoadingMore] =
+  useState(false);
+  
   const [openSearch, setOpenSearch] = useState(false);
   const [openFilter, setOpenFilter] = useState(false);
 
-  const [faculties, setFaculties] = useState([]);
+  
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
 
@@ -35,6 +48,7 @@ export default function Home() {
     fetchDepartments();
   }, []);
 
+  const observer = useRef();
   const fetchPopularSearches = async () => {
     try {
       const res = await getPopularSearches();
@@ -45,15 +59,77 @@ export default function Home() {
     }
   };
 
-  const fetchFaculties = async () => {
-    try {
-      const res = await getFaculty();
+const fetchFaculties = async (
+  pageNumber = 1
+) => {
+  try {
+    setLoading(true);
+    const res = await getFaculty(
+      pageNumber,
+      20
+    );
 
-      setFaculties(res.data.data);
-    } catch (error) {
-      console.error(error);
+    const newFaculty =
+      res.data.data || [];
+
+    if (pageNumber === 1) {
+      setFaculties(newFaculty);
+    } else {
+      setFaculties((prev) => [
+        ...prev,
+        ...newFaculty,
+      ]);
     }
-  };
+
+    if (newFaculty.length < 20) {
+      setHasMore(false);
+    }
+  } catch (error) {
+    console.error(error);
+  }finally {
+    setLoading(false);
+  }
+};
+
+
+const loadMore = async () => {
+  try {
+    setLoadingMore(true);
+
+    const nextPage = page + 1;
+
+    await fetchFaculties(nextPage);
+
+    setPage(nextPage);
+  } catch (error) {
+    console.error(error);
+  } finally {
+    setLoadingMore(false);
+  }
+};
+
+const lastFacultyRef = (node) => {
+  if (loadingMore) return;
+
+  if (observer.current) {
+    observer.current.disconnect();
+  }
+
+  observer.current =
+    new IntersectionObserver((entries) => {
+      if (
+        entries[0].isIntersecting &&
+        hasMore &&
+        !isSearching
+      ) {
+        loadMore();
+      }
+    });
+
+  if (node) {
+    observer.current.observe(node);
+  }
+};
 
   const fetchDepartments = async () => {
     try {
@@ -69,7 +145,7 @@ export default function Home() {
     try {
       saveRecentSearch(query);
 
-      const res = await searchFaculty(query);
+      const res = await searchFaculty(query,selectedDepartment);
        console.log("SEARCH DATA:", res.data);
     console.log("RESULTS:", res.data.data);
 
@@ -92,7 +168,7 @@ export default function Home() {
 
       const data = await response.json();
 
-      setSearchResults(data.data);
+      setSearchResults(data.data || []);
       setIsSearching(true);
 
       setOpenFilter(false);
@@ -150,8 +226,14 @@ export default function Home() {
 
       <button
         onClick={() => {
-          setSelectedDepartment("");
-          setIsSearching(false);
+         setSelectedDepartment("");
+setIsSearching(false);
+
+setPage(1);
+
+setHasMore(true);
+
+fetchFaculties(1);
         }}
         className="font-bold"
       >
@@ -179,11 +261,22 @@ export default function Home() {
 
       {/* Faculty List */}
 
+{loading ? (
+  <div className="text-center py-10">
+    Loading faculty...
+  </div>
+) : (
+  <div className="p-4 space-y-4">
+  
+  </div>
+)}
+
+
       <div className="p-4 space-y-4">
-        <div>
+        {/* <div>
   <p>isSearching: {String(isSearching)}</p>
   <p>searchResults: {searchResults.length}</p>
-</div>
+</div> */}
 
   {isSearching && searchResults.length === 0 ? (
 
@@ -201,25 +294,49 @@ export default function Home() {
 
   ) : (
 
-    (isSearching ? searchResults : faculties).map(
-      (faculty) => (
-        <FacultyCard
-          key={faculty._id}
-          faculty={faculty}
-        />
-      )
-    )
+   (isSearching
+  ? searchResults
+  : faculties
+).map((faculty, index, array) => {
+
+  const isLast =
+    index === array.length - 1;
+
+  return (
+    <div
+      key={faculty._id}
+      ref={
+        !isSearching && isLast
+          ? lastFacultyRef
+          : null
+      }
+    >
+      <FacultyCard faculty={faculty} />
+    </div>
+  );
+})
 
   )}
 
 </div>
 
+
+
+{loadingMore && (
+  <div className="text-center py-6 text-gray-500">
+    Loading more faculty...
+  </div>
+)}
+
       {/* Search Overlay */}
 
       <SearchOverlay
         isOpen={openSearch}
-        onClose={() => setOpenSearch(false)}
-        onSearch={handleSearch}
+  onClose={() => setOpenSearch(false)}
+  onSearch={handleSearch}
+  selectedDepartment={
+    selectedDepartment
+  }
       />
 
       {/* Filter Drawer */}

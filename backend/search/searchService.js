@@ -1,14 +1,23 @@
 import Fuse from "fuse.js";
 import Faculty from "../modules/Faculty.js";
 
-export const searchFaculty = async (query) => {
-  const faculties = await Faculty.find();
+export const searchFaculty = async (
+  query,
+  department = ""
+) => {
+  const filter = {};
+
+  if (department) {
+    filter.department = department;
+  }
+
+  const faculties = await Faculty.find(filter);
 
   const fuse = new Fuse(faculties, {
     keys: [
       "name",
       "qualification",
-      "keywords"
+      "keywords",
     ],
     threshold: 0.35,
     includeScore: true,
@@ -18,15 +27,25 @@ export const searchFaculty = async (query) => {
 
   const results = fuse.search(query);
 
-  return results.map(result => result.item);
+  return results.map(
+    (result) => result.item
+  );
 };
 
+export const getSuggestions = async (
+  query,
+  department = ""
+) => {
+  const filter = {};
 
+  if (department) {
+    filter.department = department;
+  }
 
-export const getSuggestions = async (query) => {
-  const faculties = await Faculty.find().select(
-    "name department designation photo"
-  );
+  const faculties =
+    await Faculty.find(filter).select(
+      "name department designation photo"
+    );
 
   const fuse = new Fuse(faculties, {
     keys: ["name"],
@@ -41,4 +60,3 @@ export const getSuggestions = async (query) => {
     .slice(0, 10)
     .map((result) => result.item);
 };
-

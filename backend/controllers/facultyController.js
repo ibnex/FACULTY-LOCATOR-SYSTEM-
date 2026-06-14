@@ -10,11 +10,6 @@ import { getSuggestions } from "../search/searchService.js";
 // import SearchHistory from "../modules/SearchHistory.js";
 import SearchHistory from "../modules/SearchHistory.js";
 
-// import {
-//   searchFaculty,
-//   getSuggestions,
-  
-// } from "../search/searchService.js";
 
 
 
@@ -35,17 +30,7 @@ export const scrapeFacultyData = async (req, res) => {
   }
 };
 
-// export const getAllFaculty = async (req, res) => {
-//   try {
-//     const faculties = await Faculty.find();
 
-//     res.status(200).json(faculties);
-//   } catch (error) {
-//     res.status(500).json({
-//       message: error.message,
-//     });
-//   }
-// };
 
 export const getAllFaculty = async (req, res) => {
   try {
@@ -77,40 +62,46 @@ export const getAllFaculty = async (req, res) => {
   }
 };
 
-export const searchFacultyController = async (req, res) => {
+export const searchFacultyController = async (
+  req,
+  res
+) => {
   try {
     const query = req.query.q;
 
+    const department =
+      req.query.department || "";
 
-    if (!query || !query.trim()) {   //add aditional future 
+    if (!query || !query.trim()) {
       return res.status(400).json({
         success: false,
-        message: "Search query is required"
+        message:
+          "Search query is required",
       });
     }
 
+    const results =
+      await searchFaculty(
+        query,
+        department
+      );
 
-
-
-  const results = await searchFaculty(query);
-
-await SearchHistory.create({
-  query: query.toLowerCase().trim(),
-  resultsCount: results.length,
-});
-
-
+    await SearchHistory.create({
+      query:
+        query.toLowerCase().trim(),
+      resultsCount:
+        results.length,
+    });
 
     res.status(200).json({
       success: true,
       count: results.length,
-      data: results
+      data: results,
     });
-
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
   }
 };
@@ -138,6 +129,9 @@ export const getSuggestionsController = async (
   try {
     const query = req.query.q;
 
+    const department =
+      req.query.department || "";
+
     if (!query) {
       return res.status(400).json({
         success: false,
@@ -145,7 +139,11 @@ export const getSuggestionsController = async (
       });
     }
 
-    const suggestions =await getSuggestions(query);
+    const suggestions =
+      await getSuggestions(
+        query,
+        department
+      );
 
     res.status(200).json({
       success: true,
