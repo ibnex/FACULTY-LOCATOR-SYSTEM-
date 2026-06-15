@@ -50,6 +50,30 @@ const [loadingMore, setLoadingMore] =
     fetchFaculties();
     fetchDepartments();
   }, []);
+  useEffect(() => {
+  console.log("Selected Department:", selectedDepartment);
+}, [selectedDepartment]);
+
+useEffect(() => {
+  const savedDepartment =
+    localStorage.getItem("selectedDepartment");
+
+  if (savedDepartment) {
+    setSelectedDepartment(savedDepartment);
+    setTempDepartment(savedDepartment);
+
+    fetch(
+      `http://localhost:5000/api/faculty/department/${encodeURIComponent(
+        savedDepartment
+      )}`
+    )
+      .then((res) => res.json())
+      .then((data) => {
+        setSearchResults(data.data || []);
+        setIsSearching(true);
+      });
+  }
+}, []);
 
   const observer = useRef();
   const fetchPopularSearches = async () => {
@@ -164,7 +188,10 @@ const lastFacultyRef = (node) => {
 const applyDepartmentFilter = async () => {
   try {
     setSelectedDepartment(tempDepartment);
-
+localStorage.setItem(
+  "selectedDepartment",
+  tempDepartment
+);
     const response = await fetch(
       `http://localhost:5000/api/faculty/department/${encodeURIComponent(
         tempDepartment
@@ -181,6 +208,7 @@ const applyDepartmentFilter = async () => {
     console.error(error);
   }
 };
+
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -233,16 +261,21 @@ const applyDepartmentFilter = async () => {
       </span>
 
       <button
-        onClick={() => {
-         setSelectedDepartment("");
-setIsSearching(false);
+      onClick={() => {
+  localStorage.removeItem(
+    "selectedDepartment"
+  );
 
-setPage(1);
+  setSelectedDepartment("");
+  setTempDepartment("");
 
-setHasMore(true);
+  setIsSearching(false);
 
-fetchFaculties(1);
-        }}
+  setPage(1);
+  setHasMore(true);
+
+  fetchFaculties(1);
+}}
         className="font-bold"
       >
         ✕

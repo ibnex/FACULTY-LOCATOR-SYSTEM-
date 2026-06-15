@@ -21,4 +21,5 @@ export const saveRecentSearch = (query) => {
     KEY,
     JSON.stringify(filtered.slice(0, 10))
   );
+  
 };
