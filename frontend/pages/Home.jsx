@@ -161,26 +161,26 @@ const lastFacultyRef = (node) => {
     }
   };
 
-  const applyDepartmentFilter = async () => {
-    try {
-      
-      setSelectedDepartment(tempDepartment);
-      const response = await fetch(
-        `http://localhost:5000/api/faculty/department/${encodeURIComponent(
-          selectedDepartment
-        )}`
-      );
+const applyDepartmentFilter = async () => {
+  try {
+    setSelectedDepartment(tempDepartment);
 
-      const data = await response.json();
+    const response = await fetch(
+      `http://localhost:5000/api/faculty/department/${encodeURIComponent(
+        tempDepartment
+      )}`
+    );
 
-      setSearchResults(data.data || []);
-      setIsSearching(true);
+    const data = await response.json();
 
-      setOpenFilter(false);
-    } catch (error) {
-      console.error(error);
-    }
-  };
+    setSearchResults(data.data || []);
+    setIsSearching(true);
+
+    setOpenFilter(false);
+  } catch (error) {
+    console.error(error);
+  }
+};
 
   return (
     <div className="min-h-screen bg-gray-50">
