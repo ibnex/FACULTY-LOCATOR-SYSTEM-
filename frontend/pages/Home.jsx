@@ -18,6 +18,8 @@ import { saveRecentSearch } from "../utils/localStorage";
 
 export default function Home() {
   
+  const [tempDepartment, setTempDepartment] =
+  useState("");
   const [loading, setLoading] = useState(true);
 
   const [faculties, setFaculties] = useState([]);
@@ -28,6 +30,7 @@ const [hasMore, setHasMore] = useState(true);
 
 const [loadingMore, setLoadingMore] =
   useState(false);
+  
   
   const [openSearch, setOpenSearch] = useState(false);
   const [openFilter, setOpenFilter] = useState(false);
@@ -160,6 +163,8 @@ const lastFacultyRef = (node) => {
 
   const applyDepartmentFilter = async () => {
     try {
+      
+      setSelectedDepartment(tempDepartment);
       const response = await fetch(
         `http://localhost:5000/api/faculty/department/${encodeURIComponent(
           selectedDepartment
@@ -190,7 +195,10 @@ const lastFacultyRef = (node) => {
           </div>
 
           <button
-            onClick={() => setOpenFilter(true)}
+            onClick={() => {
+  setTempDepartment(selectedDepartment);
+  setOpenFilter(true);
+}}
             className="
               px-4
               bg-white
@@ -345,9 +353,9 @@ fetchFaculties(1);
         isOpen={openFilter}
         onClose={() => setOpenFilter(false)}
         departments={departments}
-        selectedDepartment={selectedDepartment}
+        selectedDepartment={tempDepartment}
         setSelectedDepartment={
-          setSelectedDepartment
+          setTempDepartment
         }
         onApply={applyDepartmentFilter}
       />
