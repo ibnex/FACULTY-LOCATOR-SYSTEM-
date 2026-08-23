@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useMemo } from "react";
 import { FiArrowLeft } from "react-icons/fi";
 import { getSuggestions } from "../api/facultyApi";
@@ -10,20 +9,17 @@ export default function SearchOverlay({
   onSearch,
   selectedDepartment,
 }) {
-
-  
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const [recentSearches, setRecentSearches] = useState([]);
   // const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
-  
 
   const fetchSuggestions = async () => {
     try {
       // setLoading(true);
 
-      const res = await getSuggestions(query ,selectedDepartment);
+      const res = await getSuggestions(query, selectedDepartment);
 
       setSuggestions(res.data.data || []);
       setHasSearched(true);
@@ -32,17 +28,16 @@ export default function SearchOverlay({
     } finally {
       // setLoading(false);
     }
-    
   };
 
- useEffect(() => {
-  if (!query.trim()) {
-    setSuggestions([]);
-    return;
-  }
- setHasSearched(false);
-  fetchSuggestions();
-}, [query, selectedDepartment]);
+  useEffect(() => {
+    if (!query.trim()) {
+      setSuggestions([]);
+      return;
+    }
+    setHasSearched(false);
+    fetchSuggestions();
+  }, [query, selectedDepartment]);
 
   useEffect(() => {
     if (isOpen) {
@@ -52,19 +47,37 @@ export default function SearchOverlay({
 
       setRecentSearches(data);
       setQuery("");
-    setSuggestions([]);
-    setHasSearched(false);
+      setSuggestions([]);
+      setHasSearched(false);
       // setRecentSearches();
       // getRecentSearches();
     }
   }, [isOpen]);
 
-  if (!isOpen) return null;
 
   
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "auto";
+    }
+    
+    return () => {
+      document.body.style.overflow = "auto";
+    };
+  }, [isOpen]);
+  if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-white z-50">
+    <div
+      className="fixed
+    inset-0
+    bg-white
+    z-50
+    flex
+    flex-col"
+    >
       <div className="p-4 border-b">
         <div className="flex items-center gap-3">
           <button onClick={onClose}>
@@ -86,8 +99,8 @@ export default function SearchOverlay({
           />
         </div>
       </div>
-
-      <div className="p-4">
+{/* chanegdd  herer */}
+      <div className="flex-1 overflow-y-auto p-4">
         {query.trim() === "" && recentSearches.length > 0 && (
           <div className="mb-6">
             <h3 className="font-semibold mb-3">Recent Searches</h3>
@@ -113,9 +126,11 @@ export default function SearchOverlay({
         )}
 
         <div className="p-4">
-         {query.trim().length >= 2 &&
- hasSearched &&
- suggestions.length === 0 ? (
+          {/* hereeeeeeeeeeeeeeeeeeee */}
+<div>
+          {query.trim().length >= 2 &&
+          hasSearched &&
+          suggestions.length === 0 ? (
             <div className="text-center py-10">
               <h3 className="font-semibold text-lg">😔 No Faculty Found</h3>
 
@@ -154,6 +169,7 @@ export default function SearchOverlay({
               </div>
             ))
           )}
+          </div>
         </div>
       </div>
     </div>

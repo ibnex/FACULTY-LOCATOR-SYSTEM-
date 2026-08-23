@@ -51,7 +51,7 @@ const [loadingMore, setLoadingMore] =
     fetchDepartments();
   }, []);
   useEffect(() => {
-  console.log("Selected Department:", selectedDepartment);
+  // console.log("Selected Department:", selectedDepartment);
 }, [selectedDepartment]);
 
 useEffect(() => {
@@ -173,8 +173,8 @@ const lastFacultyRef = (node) => {
       saveRecentSearch(query);
 
       const res = await searchFaculty(query,selectedDepartment);
-       console.log("SEARCH DATA:", res.data);
-    console.log("RESULTS:", res.data.data);
+    //    console.log("SEARCH DATA:", res.data);
+    // console.log("RESULTS:", res.data.data);
 
       setSearchResults(res.data.data || []);
       setIsSearching(true);
@@ -213,31 +213,40 @@ localStorage.setItem(
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
+<div className="sticky top-0 bg-white border-b z-10">
+  <div className="flex items-center gap-6 px-5 lg:px-10 py-4">
 
-      <div className="sticky top-0 p-4 bg-white border-b z-10">
-        <div className="flex gap-2">
-          <div className="flex-1">
-            <SearchBar
-              onClick={() => setOpenSearch(true)}
-            />
-          </div>
+    {/* Search */}
+    <div className="w-full lg:w-3/4">
+      <SearchBar
+        onClick={() => setOpenSearch(true)}
+      />
+    </div>
 
-          <button
-            onClick={() => {
-  setTempDepartment(selectedDepartment);
-  setOpenFilter(true);
-}}
-            className="
-              px-4
-              bg-white
-              border
-              rounded-xl
-            "
-          >
-            Filter
-          </button>
-        </div>
-      </div>
+    {/* Filter */}
+    <div className="lg:w-1/4 flex justify-end">
+      <button
+        onClick={() => {
+          setTempDepartment(selectedDepartment);
+          setOpenFilter(true);
+        }}
+        className="
+          px-5
+          py-3
+          bg-white
+          border
+          rounded-xl
+          shadow-sm
+          hover:bg-gray-50
+          transition
+        "
+      >
+        Filter
+      </button>
+    </div>
+
+  </div>
+</div>
 
       {/* Popular Searches */}
 

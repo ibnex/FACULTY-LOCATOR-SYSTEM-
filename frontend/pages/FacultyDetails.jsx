@@ -60,9 +60,11 @@ export default function FacultyDetails() {
 
       {/* Profile */}
 
-      <div className="p-5">
+      <div className="p-5 ">
 
-        <div className="bg-white rounded-2xl shadow-sm p-5">
+        <div className="bg-white rounded-2xl shadow-sm p-5 mb-4">  
+          {/* changed a css in above line  */}
+          
 
           <div className="flex flex-col items-center">
 
@@ -89,6 +91,7 @@ export default function FacultyDetails() {
         </div>
 
         {/* Room Info */}
+        
 
         <div className="bg-white rounded-2xl p-6 shadow">
   <h2 className="font-semibold text-lg mb-4">

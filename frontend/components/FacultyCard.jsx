@@ -15,9 +15,10 @@ export default function FacultyCard({ faculty }) {
         cursor-pointer
         active:scale-[0.98]
         transition
+        
       "
     >
-      <div className="flex gap-4">
+      <div className="flex gap-4 ">
         <img
           src={faculty.photo}
           alt={faculty.name}
