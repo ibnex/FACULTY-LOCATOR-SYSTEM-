@@ -4,10 +4,16 @@ import dotenv from "dotenv";
 
 import connectDB from "./config/db.js";
 import facultyRoutes from "./routes/facultyRoutes.js";
+import { getSuggestions, warmSearchCache } from "./search/searchService.js";
 
 dotenv.config();
 
-connectDB();
+await connectDB();
+await warmSearchCache()
+  .then(() => getSuggestions("v"))
+  .catch((error) => {
+  console.error("Unable to warm faculty search cache:", error.message);
+});
 
 const app = express();
 

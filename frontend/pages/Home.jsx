@@ -14,32 +14,48 @@ import {
 
 import { saveRecentSearch } from "../utils/localStorage";
 
+let homeSnapshot = null;
+
 export default function Home() {
-  
-  const [loading, setLoading] = useState(true);
-
-  const [faculties, setFaculties] = useState([]);
-
-const [loadingMore, setLoadingMore] =
-  useState(false);
-  
-  
+  const snapshotToRestore = useRef(homeSnapshot);
+  const [loading, setLoading] = useState(!homeSnapshot);
+  const [faculties, setFaculties] = useState(
+    () => homeSnapshot?.faculties || []
+  );
+  const [loadingMore, setLoadingMore] = useState(false);
   const [openSearch, setOpenSearch] = useState(false);
-
-  
-  const [searchResults, setSearchResults] = useState([]);
-  const [isSearching, setIsSearching] = useState(false);
-
+  const [searchResults, setSearchResults] = useState(
+    () => homeSnapshot?.searchResults || []
+  );
+  const [isSearching, setIsSearching] = useState(
+    () => homeSnapshot?.isSearching || false
+  );
   const [popularSearches, setPopularSearches] = useState([]);
 
   const latestSearchRequest = useRef(0);
   const loadingMoreRef = useRef(false);
-  const pageRef = useRef(1);
-  const hasMoreRef = useRef(true);
-  const isSearchingRef = useRef(false);
+  const pageRef = useRef(homeSnapshot?.page || 1);
+  const hasMoreRef = useRef(homeSnapshot?.hasMore ?? true);
+  const isSearchingRef = useRef(homeSnapshot?.isSearching || false);
   const inFlightPagesRef = useRef(new Set());
+  const facultiesRef = useRef(faculties);
+  const searchResultsRef = useRef(searchResults);
+  const scrollYRef = useRef(homeSnapshot?.scrollY || 0);
 
   const observer = useRef();
+  useEffect(() => {
+    facultiesRef.current = faculties;
+    searchResultsRef.current = searchResults;
+  }, [faculties, searchResults]);
+
+  useEffect(() => {
+    const saveScrollPosition = () => {
+      scrollYRef.current = window.scrollY;
+    };
+
+    window.addEventListener("scroll", saveScrollPosition, { passive: true });
+    return () => window.removeEventListener("scroll", saveScrollPosition);
+  }, []);
   const fetchPopularSearches = async () => {
     try {
       const res = await getPopularSearches();
@@ -119,13 +135,42 @@ const fetchFaculties = async (
   /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
     fetchPopularSearches();
-    fetchFaculties();
+    if (!snapshotToRestore.current) {
+      fetchFaculties();
+    } else {
+      const restoreTimer = setTimeout(() => {
+        window.scrollTo(0, snapshotToRestore.current.scrollY);
+      }, 100);
+
+      return () => clearTimeout(restoreTimer);
+    }
   }, []);
   /* eslint-enable react-hooks/exhaustive-deps */
   /* eslint-enable react-hooks/set-state-in-effect */
 
+  useEffect(() => {
+    return () => {
+      if (
+        facultiesRef.current.length === 0 &&
+        searchResultsRef.current.length === 0 &&
+        !isSearchingRef.current &&
+        pageRef.current === 1
+      ) {
+        return;
+      }
 
-const loadMore = async () => {
+      homeSnapshot = {
+        faculties: facultiesRef.current,
+        page: pageRef.current,
+        hasMore: hasMoreRef.current,
+        searchResults: searchResultsRef.current,
+        isSearching: isSearchingRef.current,
+        scrollY: scrollYRef.current,
+      };
+    };
+  }, []);
+
+  const loadMore = async () => {
   if (
     loadingMoreRef.current ||
     !hasMoreRef.current ||
@@ -188,6 +233,8 @@ const lastFacultyRef = (node) => {
       return;
     }
 
+    setOpenSearch(false);
+
     const currentRequestId = latestSearchRequest.current + 1;
     latestSearchRequest.current = currentRequestId;
 
@@ -198,11 +245,11 @@ const lastFacultyRef = (node) => {
 
       if (currentRequestId === latestSearchRequest.current) {
         setSearchResults(res.data.data || []);
+        searchResultsRef.current = res.data.data || [];
         setIsSearching(true);
         isSearchingRef.current = true;
       }
 
-      setOpenSearch(false);
     } catch (error) {
       console.error(error);
     }
@@ -236,7 +283,7 @@ const lastFacultyRef = (node) => {
       {/* Search Result Title */}
 
       {isSearching && (
-        <div className="mx-auto max-w-7xl px-5 pb-3 lg:px-10">
+        <div className="mx-auto max-w-7xl px-5 pb-4 lg:px-11">
           <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-[#7a1f2c]">
             Search Results
           </h2>

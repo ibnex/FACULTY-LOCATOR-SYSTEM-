@@ -3,6 +3,7 @@ import axios from "axios";
 const API = axios.create({
   baseURL:
     "http://localhost:5000/api/faculty",
+    // "http://192.168.1.10:5173/api/faculty",
 });
 
 export const getFaculty = (

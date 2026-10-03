@@ -4,7 +4,10 @@ import normalizeName from "../utils/normalizeName.js";
 import XLSX from "xlsx";
 import mongoose from "mongoose";
 import { scrapeFaculty } from "../services/scraperService.js";
-import { searchFaculty } from "../search/searchService.js";
+import {
+  invalidateSearchCache,
+  searchFaculty,
+} from "../search/searchService.js";
 import { enrichFacultyProfiles } from "../services/scraperService.js";
 import { getSuggestions } from "../search/searchService.js";
 // import SearchHistory from "../modules/SearchHistory.js";
@@ -17,6 +20,7 @@ import SearchHistory from "../modules/SearchHistory.js";
 export const scrapeFacultyData = async (req, res) => {
   try {
     const faculties = await scrapeFaculty();
+    invalidateSearchCache();
 
     res.status(200).json({
       success: true,
@@ -116,6 +120,7 @@ export const searchFacultyController = async (
 export const enrichFacultyData = async (req, res) => {
   try {
     const count = await enrichFacultyProfiles();
+    invalidateSearchCache();
 
     res.json({
       success: true,
@@ -141,10 +146,10 @@ export const getSuggestionsController = async (
     const department =
       req.query.department || "";
 
-    if (query.length < 2) {
+    if (query.length < 1) {
       return res.status(400).json({
         success: false,
-        message: "Query must contain at least 2 characters",
+        message: "Query is required",
       });
     }
 
@@ -279,6 +284,8 @@ export const importFacultyExcel = async (req, res) => {  //pendinng work
 
       updatedCount++;
     }
+
+    invalidateSearchCache();
 
     res.status(200).json({
       success: true,

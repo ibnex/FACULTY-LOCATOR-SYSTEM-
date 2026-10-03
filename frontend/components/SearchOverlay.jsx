@@ -3,6 +3,8 @@ import { FiArrowLeft } from "react-icons/fi";
 import { getSuggestions } from "../api/facultyApi";
 import { getRecentSearches } from "../utils/localStorage";
 
+const suggestionCache = new Map();
+
 export default function SearchOverlay({
   isOpen,
   onClose,
@@ -12,35 +14,52 @@ export default function SearchOverlay({
   const [suggestions, setSuggestions] = useState([]);
   const [recentSearches, setRecentSearches] = useState([]);
   const [hasSearched, setHasSearched] = useState(false);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const requestId = useRef(0);
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     const currentQuery = query.trim();
 
-    if (currentQuery.length < 2) {
+    if (!isOpen || currentQuery.length < 1) {
       return undefined;
     }
 
     const currentRequestId = ++requestId.current;
+    const cachedSuggestions = suggestionCache.get(currentQuery.toLowerCase());
+
+    if (cachedSuggestions) {
+      setSuggestions(cachedSuggestions);
+      setHasSearched(true);
+      setLoadingSuggestions(false);
+      return undefined;
+    }
+
+    setLoadingSuggestions(true);
     const timer = setTimeout(async () => {
       try {
         const res = await getSuggestions(currentQuery);
 
         if (currentRequestId === requestId.current) {
-          setSuggestions(res.data.data || []);
+          const nextSuggestions = res.data.data || [];
+          suggestionCache.set(currentQuery.toLowerCase(), nextSuggestions);
+          setSuggestions(nextSuggestions);
           setHasSearched(true);
+          setLoadingSuggestions(false);
         }
       } catch (error) {
         if (currentRequestId === requestId.current) {
           setSuggestions([]);
           setHasSearched(true);
+          setLoadingSuggestions(false);
         }
         console.error(error);
       }
-    }, 300);
+    }, 120);
 
     return () => clearTimeout(timer);
-  }, [query]);
+  }, [isOpen, query]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // The overlay owns transient state that must reset each time it opens.
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -54,6 +73,7 @@ export default function SearchOverlay({
       setQuery("");
       setSuggestions([]);
       setHasSearched(false);
+      setLoadingSuggestions(false);
       requestId.current += 1;
     } else {
       requestId.current += 1;
@@ -139,7 +159,12 @@ export default function SearchOverlay({
         <div className="p-4">
           {/* hereeeeeeeeeeeeeeeeeeee */}
 <div>
-          {query.trim().length >= 2 &&
+          {query.trim().length >= 1 &&
+          loadingSuggestions ? (
+            <div className="py-10 text-center text-[#6a625c]">
+              Searching faculty...
+            </div>
+          ) : query.trim().length >= 1 &&
           hasSearched &&
           suggestions.length === 0 ? (
             <div className="text-center py-10">
@@ -147,7 +172,7 @@ export default function SearchOverlay({
 
               <p className="mt-2 text-[#6a625c]">Try another faculty name</p>
             </div>
-          ) : (
+          ) : query.trim().length >= 1 ? (
             suggestions.map((faculty) => (
               <div
                 key={faculty._id}
@@ -179,7 +204,7 @@ export default function SearchOverlay({
                 </div>
               </div>
             ))
-          )}
+          ) : null}
           </div>
         </div>
       </div>
