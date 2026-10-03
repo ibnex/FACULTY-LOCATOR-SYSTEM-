@@ -228,6 +228,7 @@ export default function FacultyDetails() {
   const navigate = useNavigate();
   const [faculty, setFaculty] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
     const fetchFaculty = async () => {
@@ -236,6 +237,10 @@ export default function FacultyDetails() {
         setFaculty(res.data.data);
       } catch (error) {
         console.error(error);
+        setLoadError(
+          error.response?.data?.message ||
+            "Unable to load this faculty profile."
+        );
       } finally {
         setLoading(false);
       }
@@ -249,7 +254,11 @@ export default function FacultyDetails() {
   }
 
   if (!faculty) {
-    return <div className="p-5 text-gray-600">Faculty not found</div>;
+    return (
+      <div className="p-5 text-gray-600">
+        {loadError || "Faculty not found"}
+      </div>
+    );
   }
 
   const category = cleanDisplayText(

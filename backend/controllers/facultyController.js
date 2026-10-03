@@ -34,8 +34,14 @@ export const scrapeFacultyData = async (req, res) => {
 
 export const getAllFaculty = async (req, res) => {
   try {
-    const page = Number(req.query.page) || 1;
-    const limit = Number(req.query.limit) || 20;
+    const requestedPage = Number.parseInt(req.query.page, 10);
+    const requestedLimit = Number.parseInt(req.query.limit, 10);
+    const page = Number.isInteger(requestedPage) && requestedPage > 0
+      ? requestedPage
+      : 1;
+    const limit = Number.isInteger(requestedLimit) && requestedLimit > 0
+      ? Math.min(requestedLimit, 100)
+      : 20;
 
     const skip = (page - 1) * limit;
 
@@ -67,7 +73,9 @@ export const searchFacultyController = async (
   res
 ) => {
   try {
-    const query = req.query.q;
+    const query = typeof req.query.q === "string"
+      ? req.query.q.trim()
+      : "";
 
     const department =
       req.query.department || "";
@@ -87,8 +95,7 @@ export const searchFacultyController = async (
       );
 
     await SearchHistory.create({
-      query:
-        query.toLowerCase().trim(),
+      query: query.toLowerCase(),
       resultsCount:
         results.length,
     });
@@ -127,15 +134,17 @@ export const getSuggestionsController = async (
   res
 ) => {
   try {
-    const query = req.query.q;
+    const query = typeof req.query.q === "string"
+      ? req.query.q.trim()
+      : "";
 
     const department =
       req.query.department || "";
 
-    if (!query) {
+    if (query.length < 2) {
       return res.status(400).json({
         success: false,
-        message: "Query required",
+        message: "Query must contain at least 2 characters",
       });
     }
 

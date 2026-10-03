@@ -8,17 +8,26 @@ const API = axios.create({
 export const getFaculty = (
   page = 1,
   limit = 20
-) =>
-  API.get(
-    `/?page=${page}&limit=${limit}`
-  );
+) => {
+  const requestUrl = `/?page=${page}&limit=${limit}`;
+
+  if (import.meta.env.DEV) {
+    console.debug("[faculty pagination] API request", {
+      url: `${API.defaults.baseURL}${requestUrl}`,
+      page,
+      limit,
+    });
+  }
+
+  return API.get(requestUrl);
+};
 
 export const searchFaculty = (
   query,
   department = ""
 ) =>
   API.get(
-    `/search?q=${query}&department=${encodeURIComponent(
+    `/search?q=${encodeURIComponent(query)}&department=${encodeURIComponent(
       department
     )}`
   );
@@ -28,7 +37,7 @@ export const getSuggestions = (
   department = ""
 ) =>
   API.get(
-    `/suggestions?q=${query}&department=${encodeURIComponent(
+    `/suggestions?q=${encodeURIComponent(query)}&department=${encodeURIComponent(
       department
     )}`
   );

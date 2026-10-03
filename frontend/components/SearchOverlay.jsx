@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { FiArrowLeft } from "react-icons/fi";
 import { getSuggestions } from "../api/facultyApi";
 import { getRecentSearches } from "../utils/localStorage";
@@ -7,38 +7,43 @@ export default function SearchOverlay({
   isOpen,
   onClose,
   onSearch,
-  selectedDepartment,
 }) {
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const [recentSearches, setRecentSearches] = useState([]);
-  // const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
-
-  const fetchSuggestions = async () => {
-    try {
-      // setLoading(true);
-
-      const res = await getSuggestions(query, selectedDepartment);
-
-      setSuggestions(res.data.data || []);
-      setHasSearched(true);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      // setLoading(false);
-    }
-  };
+  const requestId = useRef(0);
 
   useEffect(() => {
-    if (!query.trim()) {
-      setSuggestions([]);
-      return;
-    }
-    setHasSearched(false);
-    fetchSuggestions();
-  }, [query, selectedDepartment]);
+    const currentQuery = query.trim();
 
+    if (currentQuery.length < 2) {
+      return undefined;
+    }
+
+    const currentRequestId = ++requestId.current;
+    const timer = setTimeout(async () => {
+      try {
+        const res = await getSuggestions(currentQuery);
+
+        if (currentRequestId === requestId.current) {
+          setSuggestions(res.data.data || []);
+          setHasSearched(true);
+        }
+      } catch (error) {
+        if (currentRequestId === requestId.current) {
+          setSuggestions([]);
+          setHasSearched(true);
+        }
+        console.error(error);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  // The overlay owns transient state that must reset each time it opens.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (isOpen) {
       const data = getRecentSearches();
@@ -49,10 +54,12 @@ export default function SearchOverlay({
       setQuery("");
       setSuggestions([]);
       setHasSearched(false);
-      // setRecentSearches();
-      // getRecentSearches();
+      requestId.current += 1;
+    } else {
+      requestId.current += 1;
     }
   }, [isOpen]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
 
   

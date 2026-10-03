@@ -1,4 +1,4 @@
-import { useEffect, useState ,useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import SearchBar from "../components/SearchBar";
 import SearchOverlay from "../components/SearchOverlay";
@@ -20,10 +20,6 @@ export default function Home() {
 
   const [faculties, setFaculties] = useState([]);
 
-const [page, setPage] = useState(1);
-
-const [hasMore, setHasMore] = useState(true);
-
 const [loadingMore, setLoadingMore] =
   useState(false);
   
@@ -36,36 +32,12 @@ const [loadingMore, setLoadingMore] =
 
   const [popularSearches, setPopularSearches] = useState([]);
 
-  const [selectedDepartment, setSelectedDepartment] =
-    useState("");
-
-  useEffect(() => {
-    fetchPopularSearches();
-    fetchFaculties();
-  }, []);
-  useEffect(() => {
-  // console.log("Selected Department:", selectedDepartment);
-}, [selectedDepartment]);
-
-useEffect(() => {
-  const savedDepartment =
-    localStorage.getItem("selectedDepartment");
-
-  if (savedDepartment) {
-    setSelectedDepartment(savedDepartment);
-
-    fetch(
-      `http://localhost:5000/api/faculty/department/${encodeURIComponent(
-        savedDepartment
-      )}`
-    )
-      .then((res) => res.json())
-      .then((data) => {
-        setSearchResults(data.data || []);
-        setIsSearching(true);
-      });
-  }
-}, []);
+  const latestSearchRequest = useRef(0);
+  const loadingMoreRef = useRef(false);
+  const pageRef = useRef(1);
+  const hasMoreRef = useRef(true);
+  const isSearchingRef = useRef(false);
+  const inFlightPagesRef = useRef(new Set());
 
   const observer = useRef();
   const fetchPopularSearches = async () => {
@@ -81,8 +53,17 @@ useEffect(() => {
 const fetchFaculties = async (
   pageNumber = 1
 ) => {
+  if (inFlightPagesRef.current.has(pageNumber)) {
+    return;
+  }
+
+  inFlightPagesRef.current.add(pageNumber);
+
   try {
-    setLoading(true);
+    if (pageNumber === 1) {
+      setLoading(true);
+    }
+
     const res = await getFaculty(
       pageNumber,
       20
@@ -94,72 +75,132 @@ const fetchFaculties = async (
     if (pageNumber === 1) {
       setFaculties(newFaculty);
     } else {
-      setFaculties((prev) => [
-        ...prev,
-        ...newFaculty,
-      ]);
+      setFaculties((prev) => {
+        const existingIds = new Set(prev.map((faculty) => faculty._id));
+        const uniqueFaculty = newFaculty.filter(
+          (faculty) => !existingIds.has(faculty._id)
+        );
+        return [...prev, ...uniqueFaculty];
+      });
     }
 
-    if (newFaculty.length < 20) {
-      setHasMore(false);
+    const totalPages = Number(res.data.totalPages);
+    const nextHasMore = Number.isFinite(totalPages)
+      ? pageNumber < totalPages
+      : newFaculty.length === 20;
+
+    pageRef.current = pageNumber;
+    hasMoreRef.current = nextHasMore;
+
+    if (import.meta.env.DEV) {
+      console.debug("[faculty pagination] received page", {
+        requestedPage: pageNumber,
+        receivedPage: Number(res.data.page) || pageNumber,
+        receivedCount: newFaculty.length,
+        facultyCountAfter: pageNumber === 1
+          ? newFaculty.length
+          : faculties.length + newFaculty.length,
+        hasMore: nextHasMore,
+      });
     }
   } catch (error) {
     console.error(error);
   }finally {
-    setLoading(false);
+    inFlightPagesRef.current.delete(pageNumber);
+
+    if (pageNumber === 1) {
+      setLoading(false);
+    }
   }
 };
 
+  // Initial data loading is intentionally triggered by the page lifecycle.
+  /* eslint-disable react-hooks/set-state-in-effect */
+  /* eslint-disable react-hooks/exhaustive-deps */
+  useEffect(() => {
+    fetchPopularSearches();
+    fetchFaculties();
+  }, []);
+  /* eslint-enable react-hooks/exhaustive-deps */
+  /* eslint-enable react-hooks/set-state-in-effect */
+
 
 const loadMore = async () => {
+  if (
+    loadingMoreRef.current ||
+    !hasMoreRef.current ||
+    isSearchingRef.current
+  ) {
+    return;
+  }
+
+  loadingMoreRef.current = true;
+  const requestedPage = pageRef.current + 1;
+
+  if (import.meta.env.DEV) {
+    console.debug("[faculty pagination] requesting page", {
+      currentPage: pageRef.current,
+      requestedPage,
+      facultyCount: faculties.length,
+      hasMore: hasMoreRef.current,
+      loadingMore: loadingMoreRef.current,
+    });
+  }
+
   try {
     setLoadingMore(true);
 
-    const nextPage = page + 1;
-
-    await fetchFaculties(nextPage);
-
-    setPage(nextPage);
+    await fetchFaculties(requestedPage);
   } catch (error) {
     console.error(error);
   } finally {
+    loadingMoreRef.current = false;
     setLoadingMore(false);
   }
 };
 
 const lastFacultyRef = (node) => {
-  if (loadingMore) return;
-
   if (observer.current) {
     observer.current.disconnect();
   }
+
+  if (!node) return;
 
   observer.current =
     new IntersectionObserver((entries) => {
       if (
         entries[0].isIntersecting &&
-        hasMore &&
-        !isSearching
+        hasMoreRef.current &&
+        !isSearchingRef.current &&
+        !loadingMoreRef.current
       ) {
         loadMore();
       }
     });
 
-  if (node) {
-    observer.current.observe(node);
-  }
+  observer.current.observe(node);
 };
 
   const handleSearch = async (query) => {
+    const normalizedQuery = query.trim();
+
+    if (!normalizedQuery) {
+      return;
+    }
+
+    const currentRequestId = latestSearchRequest.current + 1;
+    latestSearchRequest.current = currentRequestId;
+
     try {
-      saveRecentSearch(query);
+      saveRecentSearch(normalizedQuery);
 
-      const res = await searchFaculty(query,selectedDepartment);
-    //    console.log("SEARCH DATA:", res.data);
-    // console.log("RESULTS:", res.data.data);
+      const res = await searchFaculty(normalizedQuery);
 
-      setSearchResults(res.data.data || []);
-      setIsSearching(true);
+      if (currentRequestId === latestSearchRequest.current) {
+        setSearchResults(res.data.data || []);
+        setIsSearching(true);
+        isSearchingRef.current = true;
+      }
 
       setOpenSearch(false);
     } catch (error) {
@@ -185,48 +226,6 @@ const lastFacultyRef = (node) => {
 
       {/* Popular Searches */}
 
-{selectedDepartment && (
-  <div className="mx-auto max-w-7xl px-5 pt-5 lg:px-10">
-    <div
-      className="
-        inline-flex
-        items-center
-        gap-2
-        border border-[#cdbda8]
-        bg-[#f4efe8]
-        text-[#7a1f2c]
-        px-3
-        py-1
-        rounded-full
-        text-sm
-      "
-    >
-      <span>
-        {selectedDepartment}
-      </span>
-
-      <button
-      onClick={() => {
-  localStorage.removeItem(
-    "selectedDepartment"
-  );
-
-  setSelectedDepartment("");
-
-  setIsSearching(false);
-
-  setPage(1);
-  setHasMore(true);
-
-  fetchFaculties(1);
-}}
-        className="font-bold"
-      >
-        ✕
-      </button>
-    </div>
-  </div>
-)}
       <div className="mx-auto max-w-7xl px-5 pt-7 lg:px-10">
         <PopularSearches
           searches={popularSearches}
@@ -296,9 +295,6 @@ const lastFacultyRef = (node) => {
         isOpen={openSearch}
   onClose={() => setOpenSearch(false)}
   onSearch={handleSearch}
-  selectedDepartment={
-    selectedDepartment
-  }
       />
 
     </div>
