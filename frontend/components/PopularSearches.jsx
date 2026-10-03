@@ -5,7 +5,9 @@ export default function PopularSearches({ searches, onSearch }) {
 
   return (
     <div>
-      <h2 className="text-lg font-semibold mb-3">Popular Searches</h2>
+      <h2 className="mb-3 text-sm font-semibold uppercase tracking-[0.18em] text-[#7a1f2c]">
+        Popular Searches
+      </h2>
 
       <div className="flex flex-wrap gap-2">
         {searches.map((item, index) => (
@@ -14,11 +16,14 @@ export default function PopularSearches({ searches, onSearch }) {
             className="
               px-3
               py-1
-              bg-white
+              bg-[#f4efe8]
               border
-              rounded-full
+              border-[#cdbda8]
+              rounded-lg
               text-sm
               shadow-sm
+              text-[#2e2a2a]
+              hover:border-[#7a1f2c]
             "
           >
             {item._id}

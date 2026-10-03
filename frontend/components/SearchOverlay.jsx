@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { FiArrowLeft } from "react-icons/fi";
 import { getSuggestions } from "../api/facultyApi";
 import { getRecentSearches } from "../utils/localStorage";
@@ -73,12 +73,12 @@ export default function SearchOverlay({
     <div
       className="fixed
     inset-0
-    bg-white
+    bg-[#e7dfd3]
     z-50
     flex
     flex-col"
     >
-      <div className="p-4 border-b">
+      <div className="border-b border-[#d9cdb8] bg-[#e7dfd3] p-4">
         <div className="flex items-center gap-3">
           <button onClick={onClose}>
             <FiArrowLeft size={22} />
@@ -95,7 +95,7 @@ export default function SearchOverlay({
               }
             }}
             placeholder="Search faculty..."
-            className="flex-1 outline-none text-lg"
+            className="flex-1 bg-transparent text-lg text-[#2e2a2a] outline-none"
           />
         </div>
       </div>
@@ -103,7 +103,9 @@ export default function SearchOverlay({
       <div className="flex-1 overflow-y-auto p-4">
         {query.trim() === "" && recentSearches.length > 0 && (
           <div className="mb-6">
-            <h3 className="font-semibold mb-3">Recent Searches</h3>
+            <h3 className="mb-3 text-sm font-semibold uppercase tracking-[0.18em] text-[#7a1f2c]">
+              Recent Searches
+            </h3>
 
             <div className="flex flex-wrap gap-2">
               {recentSearches.map((item) => (
@@ -113,9 +115,11 @@ export default function SearchOverlay({
                   className="
             px-3
             py-1
-            bg-gray-100
-            rounded-full
+            bg-[#f4efe8]
+            border border-[#cdbda8]
+            rounded-lg
             text-sm
+            text-[#2e2a2a]
           "
                 >
                   {item}
@@ -132,9 +136,9 @@ export default function SearchOverlay({
           hasSearched &&
           suggestions.length === 0 ? (
             <div className="text-center py-10">
-              <h3 className="font-semibold text-lg">😔 No Faculty Found</h3>
+              <h3 className="font-serif text-2xl font-medium text-[#1f1b1b]">No Faculty Found</h3>
 
-              <p className="text-gray-500 mt-2">Try another faculty name</p>
+              <p className="mt-2 text-[#6a625c]">Try another faculty name</p>
             </div>
           ) : (
             suggestions.map((faculty) => (
@@ -146,7 +150,7 @@ export default function SearchOverlay({
           items-center
           gap-3
           py-3
-          border-b
+          border-b border-[#d9cdb8]
           cursor-pointer
         "
               >
@@ -162,9 +166,9 @@ export default function SearchOverlay({
                 />
 
                 <div>
-                  <h3 className="font-medium">{faculty.name}</h3>
+                  <h3 className="font-serif text-xl text-[#1f1b1b]">{faculty.name}</h3>
 
-                  <p className="text-sm text-gray-500">{faculty.department}</p>
+                  <p className="text-sm text-[#6a625c]">{faculty.department}</p>
                 </div>
               </div>
             ))

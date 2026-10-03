@@ -1,128 +1,407 @@
 import axios from "axios";
 import * as cheerio from "cheerio";
 import Faculty from "../modules/Faculty.js";
+import normalizeName from "../utils/normalizeName.js";
 
-export const scrapeFaculty = async () => {
-  try {
-    const url =
-      "https://www.alliance.edu.in/faculties/category/core-faculty";
+const FACULTY_PAGE_URL =
+  "https://www.alliance.edu.in/faculties/";
+const FACULTY_AJAX_URL =
+  "https://www.alliance.edu.in/wp-admin/admin-ajax.php";
+const FACULTY_TYPES = [1, 2, 3, 4, 5, 6];
+const REQUEST_TIMEOUT_MS = 30_000;
 
-    const { data } = await axios.get(url);
+const cleanText = (value = "") =>
+  String(value).replace(/\s+/g, " ").trim();
 
-    const $ = cheerio.load(data);
+const getText = (element, selector) =>
+  cleanText(element.find(selector).first().text());
 
-    const faculties = [];
+const escapeRegExp = (value = "") =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-    $(".card.img-hover-zoom--basic.mb-3").each((index, element) => {
-      const name = $(element)
-        .find(".card-title")
-        .text()
-        .trim();
+const getKeywords = (faculty) =>
+  [
+    faculty.name,
+    faculty.qualification,
+    faculty.institution,
+    faculty.designation,
+    faculty.department,
+    faculty.school,
+    faculty.facultyCategory,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .split(/[\s,./()&-]+/)
+    .map((keyword) => keyword.trim().toLowerCase())
+    .filter(Boolean);
 
-      const photo = $(element)
-        .find("img.card-img-top")
-        .attr("src");
-
-      const profileUrl = $(element)
-        .find("a")
-        .attr("href");
-
-      const qualification = $(element)
-        .find(".card-text")
-        .text()
-        .replace(/\s+/g, " ")
-        .trim();
-
-      const keywords = name
-        .toLowerCase()
-        .split(" ")
-        .filter(Boolean);
-
-      faculties.push({
-        name,
-        qualification,
-        photo,
-        profileUrl,
-        keywords,
-      });
-    });
-
-    // Save or update faculty records
-    for (const faculty of faculties) {
-      await Faculty.updateOne(
-        {
-          profileUrl: faculty.profileUrl,
-        },
-        {
-          $set: faculty,
-        },
-        {
-          upsert: true,
-        }
-      );
+const requestFacultyPage = async (typeId, page) => {
+  const response = await axios.post(
+    FACULTY_AJAX_URL,
+    new URLSearchParams({
+      action: "load_faculty",
+      type_id: String(typeId),
+      page: String(page),
+      search: "",
+      school_filter: "",
+      teach_filter: "",
+      phd_filter: "",
+    }),
+    {
+      headers: {
+        "Content-Type":
+          "application/x-www-form-urlencoded",
+        Referer: FACULTY_PAGE_URL,
+      },
+      timeout: REQUEST_TIMEOUT_MS,
     }
+  );
 
-    console.log(`${faculties.length} faculties saved to MongoDB`);
+  const data = response.data?.data;
 
-    return faculties;
-  } catch (error) {
-    console.error("Scraper Error:", error.message);
-    throw error;
+  if (
+    response.data?.success !== true ||
+    !data ||
+    typeof data.html !== "string" ||
+    !Number.isInteger(data.total_pages)
+  ) {
+    throw new Error(
+      `Alliance faculty endpoint returned an invalid response for type ${typeId}, page ${page}`
+    );
+  }
+
+  return data;
+};
+
+const normalizeProfileUrl = (url) => {
+  if (!url) return "";
+
+  try {
+    return new URL(url, FACULTY_PAGE_URL).href;
+  } catch {
+    return url.trim();
   }
 };
 
-export const enrichFacultyProfiles = async () => {
-  try {
-    const faculties = await Faculty.find();
+const parseFacultyCards = (html) => {
+  const $ = cheerio.load(html);
+  const faculty = [];
 
-    let updatedCount = 0;
+  $(".faculty-card").each((_, card) => {
+    const element = $(card);
+    const profileUrl = normalizeProfileUrl(
+      element.find("a[href]").first().attr("href")
+    );
+    const name = getText(element, "h4");
 
-    for (const faculty of faculties) {
-      if (!faculty.profileUrl) continue;
-
-      try {
-        const { data } = await axios.get(faculty.profileUrl);
-
-        const $ = cheerio.load(data);
-
-        const designation = $(".faculty_p b")
-          .first()
-          .text()
-          .trim();
-
-        const department = $(".faculty_p")
-          .eq(1)
-          .text()
-          .trim();
-
-        await Faculty.updateOne(
-          { _id: faculty._id },
-          {
-            $set: {
-              designation,
-              department,
-            },
-          }
-        );
-
-        updatedCount++;
-
-        console.log(
-          `Updated ${faculty.name} -> ${department}`
-        );
-      } catch (err) {
-        console.log(
-          `Failed: ${faculty.name}`
-        );
-      }
+    if (!profileUrl || !name) {
+      return;
     }
 
-    console.log(
-      `${updatedCount} faculty profiles updated`
-    );
+    const photo =
+      element.find("img[src]").first().attr("src")?.trim() ||
+      "";
 
-    return updatedCount;
-  } catch (error) {
-    throw error;
+    const item = {
+      name,
+      facultyCategory: getText(element, ".designation"),
+      designation: getText(element, ".designation"),
+      qualification: getText(element, ".degree"),
+      institution: getText(element, ".institution"),
+      photo,
+      profileUrl,
+    };
+
+    faculty.push({
+      ...item,
+      keywords: getKeywords(item),
+    });
+  });
+
+  return faculty;
+};
+
+const extractProfileBiography = ($) => {
+  const aboutContent = $(".about-content").first();
+  if (!aboutContent.length) {
+    return "";
   }
+
+  const label = cleanText(aboutContent.find(".about-label").first().text());
+  const title = cleanText(aboutContent.find(".about-title").first().text());
+  const subtitle = cleanText(
+    aboutContent.find(".about-subtitle").first().text()
+  );
+
+  let biography = cleanText(aboutContent.text());
+
+  [label, title, subtitle].forEach((snippet) => {
+    if (!snippet) return;
+    biography = biography.replace(
+      new RegExp(`${escapeRegExp(snippet)}\\s*`, "gi"),
+      " "
+    );
+  });
+
+  return biography.replace(/\s+\*\s+/g, " ").trim();
+};
+
+const extractInstitutionName = (biography, fallback = "") => {
+  const match = biography.match(/Alliance University/gi);
+  if (match) return "Alliance University";
+
+  const schoolMatch = biography.match(
+    /at the\s+([A-Z][A-Za-z0-9&./ -]+?)(?:,\s*Alliance|\.|$)/i
+  );
+
+  if (schoolMatch) {
+    return schoolMatch[1].trim();
+  }
+
+  return fallback;
+};
+
+const extractSchoolName = (biography, fallback = "") => {
+  const match = biography.match(
+    /at the\s+([A-Z][A-Za-z0-9&./ -]+?)(?:,\s*Alliance University|\.|$)/i
+  );
+
+  if (match) {
+    return match[1].trim();
+  }
+
+  return fallback;
+};
+
+const extractArrayFromText = (text, minLength = 2) => {
+  if (!text) return [];
+
+  return text
+    .split(/[;|\n]/)
+    .map((item) => cleanText(item))
+    .filter((item) => item && item.length >= minLength)
+    .slice(0, 10);
+};
+
+const parseProfileSections = ($) => {
+  const sections = {};
+
+  $(".program-item").each((_, item) => {
+    const element = $(item);
+    const title = cleanText(element.find(".program-title").first().clone().children().remove().end().text());
+    const content = cleanText(element.find(".program-content").first().text());
+
+    if (title && content) {
+      sections[title] = content;
+    }
+  });
+
+  return sections;
+};
+
+const getSection = (sections, title) => {
+  const key = Object.keys(sections).find(
+    (sectionTitle) => sectionTitle.toLowerCase() === title.toLowerCase()
+  );
+
+  return key ? sections[key] : "";
+};
+
+const parseFacultyProfile = async (cardFaculty) => {
+  const profileUrl = cardFaculty.profileUrl;
+  const response = await axios.get(profileUrl, {
+    timeout: REQUEST_TIMEOUT_MS,
+    headers: {
+      Referer: FACULTY_PAGE_URL,
+      "User-Agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+    },
+  });
+
+  const $ = cheerio.load(response.data);
+
+  const facultyCategory = cleanText($(".about-label").first().text());
+  const name =
+    cleanText($(".about-title").first().text()) || cardFaculty.name;
+  const designation =
+    cleanText($(".about-subtitle").first().text()) ||
+    cardFaculty.designation;
+  const biography = extractProfileBiography($);
+  const profileSections = parseProfileSections($);
+  const photo =
+    $('meta[property="og:image"]').attr("content") ||
+    $('img[src*="faculty"]').first().attr("src") ||
+    cardFaculty.photo;
+
+  const cleanedProfile = {
+    name,
+    facultyCategory,
+    designation,
+    biography,
+    institution: cardFaculty.institution,
+    school: extractSchoolName(biography),
+    department: cardFaculty.department || "",
+    profileSections,
+    photo,
+    profileUrl,
+  };
+
+  const qualificationCandidates = [
+    cardFaculty.qualification,
+    $(".degree").first().text(),
+    $(".qualification").first().text(),
+    $("[class*='qualification']").first().text(),
+  ]
+    .map((value) => cleanText(value))
+    .filter(Boolean);
+
+  if (qualificationCandidates.length) {
+    cleanedProfile.qualification = qualificationCandidates[0];
+  }
+
+  const researchText =
+    getSection(profileSections, "Research Interests") ||
+    getSection(profileSections, "Research Interest");
+  if (researchText) {
+    cleanedProfile.researchInterests = extractArrayFromText(
+      researchText,
+      3
+    );
+  }
+
+  const publicationsText = getSection(profileSections, "Publications");
+  if (publicationsText) {
+    cleanedProfile.publications = extractArrayFromText(
+      publicationsText,
+      3
+    );
+  }
+
+  const experienceText = getSection(profileSections, "Experience");
+  if (experienceText) {
+    cleanedProfile.experience = experienceText;
+  }
+
+  const academicText =
+    getSection(profileSections, "Qualifications") ||
+    getSection(profileSections, "Academic Qualifications");
+  if (academicText) {
+    cleanedProfile.academicQualifications = extractArrayFromText(
+      academicText,
+      3
+    );
+  }
+
+  if (
+    !cleanedProfile.qualification &&
+    cleanedProfile.academicQualifications?.length
+  ) {
+    cleanedProfile.qualification = cleanedProfile.academicQualifications[0];
+  }
+
+  cleanedProfile.keywords = getKeywords(cleanedProfile);
+
+  return cleanedProfile;
+};
+
+const findExistingFaculty = async (faculty) => {
+  if (faculty.profileUrl) {
+    const byProfileUrl = await Faculty.findOne({
+      profileUrl: faculty.profileUrl,
+    });
+
+    if (byProfileUrl) return byProfileUrl;
+  }
+
+  if (faculty.name) {
+    const normalized = normalizeName(faculty.name);
+
+    const byName = await Faculty.findOne({
+      name: { $regex: new RegExp(`^${escapeRegExp(faculty.name)}$`, "i") },
+    });
+
+    if (byName) return byName;
+
+    if (normalized) {
+      const allFaculty = await Faculty.find({});
+      const match = allFaculty.find(
+        (item) =>
+          normalizeName(item.name) === normalized ||
+          normalizeName(item.name).includes(normalized)
+      );
+
+      if (match) return match;
+    }
+  }
+
+  return null;
+};
+
+const upsertFaculty = async (faculty) => {
+  const existing = await findExistingFaculty(faculty);
+
+  const payload = {
+    ...faculty,
+    roomNumber: existing?.roomNumber ?? faculty.roomNumber ?? "",
+    floorNumber: existing?.floorNumber ?? faculty.floorNumber ?? null,
+    cabinNumber: existing?.cabinNumber ?? faculty.cabinNumber ?? "",
+  };
+
+  await Faculty.findOneAndUpdate(
+    existing ? { _id: existing._id } : { profileUrl: faculty.profileUrl },
+    {
+      $set: payload,
+    },
+    {
+      upsert: true,
+      new: true,
+      setDefaultsOnInsert: true,
+    }
+  );
+};
+
+export const scrapeFaculty = async () => {
+  const scrapedFaculty = [];
+
+  for (const typeId of FACULTY_TYPES) {
+    let page = 1;
+    let totalPages = 1;
+
+    do {
+      const data = await requestFacultyPage(typeId, page);
+      totalPages = data.total_pages;
+      scrapedFaculty.push(...parseFacultyCards(data.html));
+      page += 1;
+    } while (page <= totalPages);
+  }
+
+  const uniqueFaculty = Array.from(
+    new Map(
+      scrapedFaculty.map((faculty) => [
+        faculty.profileUrl,
+        faculty,
+      ])
+    ).values()
+  );
+
+  for (const faculty of uniqueFaculty) {
+    try {
+      const profileData = await parseFacultyProfile(faculty);
+      Object.assign(faculty, profileData);
+      await upsertFaculty(faculty);
+    } catch (error) {
+      console.error(
+        `Failed to enrich faculty profile for ${faculty.name}:`,
+        error.message
+      );
+      await upsertFaculty(faculty);
+    }
+  }
+
+  return uniqueFaculty;
+};
+
+export const enrichFacultyProfiles = async () => {
+  const faculty = await scrapeFaculty();
+  return faculty.length;
 };

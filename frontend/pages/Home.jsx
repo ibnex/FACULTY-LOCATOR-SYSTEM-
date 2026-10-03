@@ -4,13 +4,11 @@ import SearchBar from "../components/SearchBar";
 import SearchOverlay from "../components/SearchOverlay";
 import PopularSearches from "../components/PopularSearches";
 import FacultyCard from "../components/FacultyCard";
-import FilterDrawer from "../components/FilterDrawer";
 
 
 import {
   getPopularSearches,
   getFaculty,
-  getDepartments,
   searchFaculty,
 } from "../api/facultyApi";
 
@@ -18,8 +16,6 @@ import { saveRecentSearch } from "../utils/localStorage";
 
 export default function Home() {
   
-  const [tempDepartment, setTempDepartment] =
-  useState("");
   const [loading, setLoading] = useState(true);
 
   const [faculties, setFaculties] = useState([]);
@@ -33,7 +29,6 @@ const [loadingMore, setLoadingMore] =
   
   
   const [openSearch, setOpenSearch] = useState(false);
-  const [openFilter, setOpenFilter] = useState(false);
 
   
   const [searchResults, setSearchResults] = useState([]);
@@ -41,14 +36,12 @@ const [loadingMore, setLoadingMore] =
 
   const [popularSearches, setPopularSearches] = useState([]);
 
-  const [departments, setDepartments] = useState([]);
   const [selectedDepartment, setSelectedDepartment] =
     useState("");
 
   useEffect(() => {
     fetchPopularSearches();
     fetchFaculties();
-    fetchDepartments();
   }, []);
   useEffect(() => {
   // console.log("Selected Department:", selectedDepartment);
@@ -60,7 +53,6 @@ useEffect(() => {
 
   if (savedDepartment) {
     setSelectedDepartment(savedDepartment);
-    setTempDepartment(savedDepartment);
 
     fetch(
       `http://localhost:5000/api/faculty/department/${encodeURIComponent(
@@ -158,16 +150,6 @@ const lastFacultyRef = (node) => {
   }
 };
 
-  const fetchDepartments = async () => {
-    try {
-      const res = await getDepartments();
-
-      setDepartments(res.data.data);
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
   const handleSearch = async (query) => {
     try {
       saveRecentSearch(query);
@@ -185,64 +167,17 @@ const lastFacultyRef = (node) => {
     }
   };
 
-const applyDepartmentFilter = async () => {
-  try {
-    setSelectedDepartment(tempDepartment);
-localStorage.setItem(
-  "selectedDepartment",
-  tempDepartment
-);
-    const response = await fetch(
-      `http://localhost:5000/api/faculty/department/${encodeURIComponent(
-        tempDepartment
-      )}`
-    );
-
-    const data = await response.json();
-
-    setSearchResults(data.data || []);
-    setIsSearching(true);
-
-    setOpenFilter(false);
-  } catch (error) {
-    console.error(error);
-  }
-};
-
-
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen" style={{ background: "#e7dfd3" }}>
       {/* Header */}
-<div className="sticky top-0 bg-white border-b z-10">
-  <div className="flex items-center gap-6 px-5 lg:px-10 py-4">
+<div className="sticky top-0 z-10 border-b border-[#d9cdb8] bg-[#e7dfd3]/95 backdrop-blur">
+  <div className="mx-auto flex max-w-7xl items-center px-5 py-5 lg:px-10">
 
     {/* Search */}
-    <div className="w-full lg:w-3/4">
+    <div className="w-full">
       <SearchBar
         onClick={() => setOpenSearch(true)}
       />
-    </div>
-
-    {/* Filter */}
-    <div className="lg:w-1/4 flex justify-end">
-      <button
-        onClick={() => {
-          setTempDepartment(selectedDepartment);
-          setOpenFilter(true);
-        }}
-        className="
-          px-5
-          py-3
-          bg-white
-          border
-          rounded-xl
-          shadow-sm
-          hover:bg-gray-50
-          transition
-        "
-      >
-        Filter
-      </button>
     </div>
 
   </div>
@@ -251,14 +186,15 @@ localStorage.setItem(
       {/* Popular Searches */}
 
 {selectedDepartment && (
-  <div className="px-4 pt-2">
+  <div className="mx-auto max-w-7xl px-5 pt-5 lg:px-10">
     <div
       className="
         inline-flex
         items-center
         gap-2
-        bg-blue-100
-        text-blue-700
+        border border-[#cdbda8]
+        bg-[#f4efe8]
+        text-[#7a1f2c]
         px-3
         py-1
         rounded-full
@@ -276,7 +212,6 @@ localStorage.setItem(
   );
 
   setSelectedDepartment("");
-  setTempDepartment("");
 
   setIsSearching(false);
 
@@ -292,7 +227,7 @@ localStorage.setItem(
     </div>
   </div>
 )}
-      <div className="p-4">
+      <div className="mx-auto max-w-7xl px-5 pt-7 lg:px-10">
         <PopularSearches
           searches={popularSearches}
           onSearch={handleSearch}
@@ -302,8 +237,8 @@ localStorage.setItem(
       {/* Search Result Title */}
 
       {isSearching && (
-        <div className="px-4 pb-2">
-          <h2 className="font-semibold">
+        <div className="mx-auto max-w-7xl px-5 pb-3 lg:px-10">
+          <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-[#7a1f2c]">
             Search Results
           </h2>
         </div>
@@ -311,69 +246,46 @@ localStorage.setItem(
 
       {/* Faculty List */}
 
-{loading ? (
-  <div className="text-center py-10">
-    Loading faculty...
-  </div>
-) : (
-  <div className="p-4 space-y-4">
-  
-  </div>
-)}
+      {loading ? (
+        <div className="py-16 text-center text-[#5f554e]">
+          Loading faculty...
+        </div>
+      ) : (
+        <div className="mx-auto grid max-w-7xl grid-cols-1 gap-4 px-5 pb-10 md:grid-cols-2 lg:gap-5 lg:px-10">
+          {isSearching && searchResults.length === 0 ? (
+            <div className="py-16 text-center md:col-span-2">
+              <h2 className="mb-2 font-serif text-2xl text-[#1f1b1b]">
+                No Faculty Found
+              </h2>
+              <p className="text-[#6a625c]">
+                Try another name or clear the search
+              </p>
+            </div>
+          ) : (
+            (isSearching ? searchResults : faculties).map(
+              (faculty, index, array) => {
+                const isLast = index === array.length - 1;
 
-
-      <div className="p-4 space-y-4">
-        {/* <div>
-  <p>isSearching: {String(isSearching)}</p>
-  <p>searchResults: {searchResults.length}</p>
-</div> */}
-
-  {isSearching && searchResults.length === 0 ? (
-
-    <div className="text-center py-16">
-
-      <h2 className="text-xl font-semibold mb-2">
-        😔 No Faculty Found
-      </h2>
-
-      <p className="text-gray-500">
-        Try another name or clear filters
-      </p>
-
-    </div>
-
-  ) : (
-
-   (isSearching
-  ? searchResults
-  : faculties
-).map((faculty, index, array) => {
-
-  const isLast =
-    index === array.length - 1;
-
-  return (
-    <div
-      key={faculty._id}
-      ref={
-        !isSearching && isLast
-          ? lastFacultyRef
-          : null
-      }
-    >
-      <FacultyCard faculty={faculty} />
-    </div>
-  );
-})
-
-  )}
-
-</div>
+                return (
+                  <div
+                    key={faculty._id}
+                    ref={
+                      !isSearching && isLast ? lastFacultyRef : null
+                    }
+                  >
+                    <FacultyCard faculty={faculty} />
+                  </div>
+                );
+              }
+            )
+          )}
+        </div>
+      )}
 
 
 
 {loadingMore && (
-  <div className="text-center py-6 text-gray-500">
+  <div className="py-6 text-center text-[#6a625c]">
     Loading more faculty...
   </div>
 )}
@@ -389,18 +301,6 @@ localStorage.setItem(
   }
       />
 
-      {/* Filter Drawer */}
-
-      <FilterDrawer
-        isOpen={openFilter}
-        onClose={() => setOpenFilter(false)}
-        departments={departments}
-        selectedDepartment={tempDepartment}
-        setSelectedDepartment={
-          setTempDepartment
-        }
-        onApply={applyDepartmentFilter}
-      />
     </div>
   );
 }

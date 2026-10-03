@@ -8,7 +8,17 @@ const facultySchema = new mongoose.Schema(
       trim: true,
     },
 
+    facultyCategory: {
+      type: String,
+      default: "",
+    },
+
     department: {
+      type: String,
+      default: "",
+    },
+
+    school: {
       type: String,
       default: "",
     },
@@ -23,6 +33,36 @@ const facultySchema = new mongoose.Schema(
       default: "",
     },
 
+    academicQualifications: {
+      type: [String],
+      default: [],
+    },
+
+    institution: {
+      type: String,
+      default: "",
+    },
+
+    biography: {
+      type: String,
+      default: "",
+    },
+
+    researchInterests: {
+      type: [String],
+      default: [],
+    },
+
+    publications: {
+      type: [String],
+      default: [],
+    },
+
+    experience: {
+      type: String,
+      default: "",
+    },
+
     photo: {
       type: String,
       default: "",
@@ -32,6 +72,11 @@ const facultySchema = new mongoose.Schema(
       type: String,
       default: "",
       unique: true,
+    },
+
+    profileSections: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
     },
 
     floorNumber: {

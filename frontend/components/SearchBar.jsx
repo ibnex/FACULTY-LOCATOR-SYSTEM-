@@ -12,14 +12,14 @@ max-w-full
 flex
 items-center
 gap-3
-px-4
-py-2
-bg-white
+px-5
+py-3
+bg-[#f4efe8]
 border
-border-gray-200
-rounded-2xl
+border-[#cdbda8]
+rounded-xl
 shadow-sm
-hover:shadow-md
+hover:border-[#7a1f2c]
 transition-all
 duration-200
 "
@@ -32,8 +32,8 @@ duration-200
           w-9
           h-9
           rounded-full
-          bg-blue-50
-          text-blue-600
+          bg-[#861226]
+          text-white
           shrink-0
         "
       >
@@ -41,12 +41,12 @@ duration-200
       </div>
 
       <div className="flex flex-col items-start">
-        <span className="text-[15px] font-medium text-gray-800">
+        <span className="text-[15px] font-medium text-[#2e2a2a]">
           Search Faculty
         </span>
 
-        <span className="text-xs text-gray-500">
-          Name
+        <span className="text-xs text-[#6a625c]">
+          Search by name, department, or expertise
         </span>
       </div>
     </button>

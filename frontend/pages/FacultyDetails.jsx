@@ -1,139 +1,395 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { FiArrowLeft } from "react-icons/fi";
+import { useNavigate, useParams } from "react-router-dom";
+import { FiArrowDown, FiArrowLeft } from "react-icons/fi";
 
 import { getFacultyDetails } from "../api/facultyApi";
+import FacultyAcademicInfo from "../components/FacultyAcademicInfo";
+import FacultyLocation from "../components/FacultyLocation";
+
+const cleanDisplayText = (value, fallback = "Not Available") => {
+  if (typeof value !== "string") {
+    return fallback;
+  }
+
+  const cleaned = value
+    .replace(/\\([\\/'".])/g, "$1")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/[{}<>[\]#$%^*_~=|`]/g, " ")
+    .replace(/([!?]){2,}/g, "$1")
+    .replace(/[+/@]{2,}/g, " ")
+    .replace(/\s*([,;:.!?])\s*/g, "$1 ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return cleaned || fallback;
+};
+
+const cleanArray = (items) =>
+  Array.isArray(items)
+    ? items.map((item) => cleanDisplayText(item)).filter(Boolean)
+    : [];
+
+const removeProfileSections = (biography, profileSections) => {
+  const sectionTitles = [
+    ...Object.keys(profileSections),
+    "Publications",
+    "Conference",
+    "Conferences",
+    "Research Interests",
+    "Experience",
+    "Patents",
+    "Projects",
+    "Book Editor",
+    "Book Reviewer",
+    "Event Organizer",
+  ]
+    .map((title) => cleanDisplayText(title, ""))
+    .filter(Boolean);
+
+  const sectionStart = sectionTitles.reduce((firstIndex, title) => {
+    const match = biography.search(
+      new RegExp(`\\b${title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i")
+    );
+
+    return match >= 0 && (firstIndex < 0 || match < firstIndex)
+      ? match
+      : firstIndex;
+  }, -1);
+
+  return sectionStart >= 0
+    ? biography.slice(0, sectionStart).trim()
+    : biography;
+};
+
+const formatIntroduction = (biography, name) => {
+  if (!biography) {
+    return "No biography available.";
+  }
+
+  if (biography.toLowerCase().startsWith(name.toLowerCase())) {
+    return biography;
+  }
+
+  const accomplishedStart = biography.match(
+    /^.*?\b(is\s+(?:a|an)\s+highly accomplished\b)/i
+  );
+
+  if (accomplishedStart) {
+    return `${name} ${accomplishedStart[1]}${biography.slice(
+      accomplishedStart[0].length
+    )}`;
+  }
+
+  return `${name} ${biography}`;
+};
+
+const SECTION_HEADINGS = [
+  "Books",
+  "Journals",
+  "Magazines",
+  "Patents",
+  "Projects",
+  "Conference",
+  "Conferences",
+  "Workshops",
+  "Awards",
+  "Education",
+  "Book Editor",
+  "Book Reviewer",
+  "Event Organizer",
+];
+
+const splitSectionContent = (content) => {
+  const cleaned = cleanDisplayText(content, "");
+
+  if (!cleaned) {
+    return [];
+  }
+
+  return cleaned
+    .replace(
+      new RegExp(`\\s+(?=(${SECTION_HEADINGS.join("|")})\\b)`, "gi"),
+      "\n"
+    )
+    .split("\n")
+    .map((part) => part.trim())
+    .filter(Boolean);
+};
+
+const sectionHeadingPattern = new RegExp(
+  `^(${SECTION_HEADINGS.join("|")})$`,
+  "i"
+);
+
+const parseSectionHighlights = (content) => {
+  const parts = splitSectionContent(content);
+  const groups = [];
+  let currentGroup = { heading: "Highlights", items: [] };
+
+  parts.forEach((part) => {
+    if (sectionHeadingPattern.test(part)) {
+      if (currentGroup.items.length) {
+        groups.push(currentGroup);
+      }
+      currentGroup = { heading: part, items: [] };
+      return;
+    }
+
+    currentGroup.items.push(part);
+  });
+
+  if (currentGroup.items.length) {
+    groups.push(currentGroup);
+  }
+
+  return groups;
+};
+
+const sectionOrder = (title) => {
+  const normalizedTitle = title.toLowerCase();
+
+  if (
+    normalizedTitle.includes("achievement") ||
+    normalizedTitle.includes("award") ||
+    normalizedTitle.includes("patent") ||
+    normalizedTitle.includes("project")
+  ) {
+    return 10;
+  }
+
+  if (normalizedTitle.includes("conference")) {
+    return 20;
+  }
+
+  if (normalizedTitle.includes("publication")) {
+    return 100;
+  }
+
+  return 50;
+};
+
+function FacultyAccordion({ title, content, items = [] }) {
+  const [open, setOpen] = useState(false);
+  const groups = items.length
+    ? [{ heading: "Peer-Reviewed Research Publications", items }]
+    : parseSectionHighlights(content);
+
+  return (
+    <div
+      className={`mb-3 overflow-hidden border ${
+        open
+          ? "border-[#861226] bg-[#861226] text-white"
+          : "border-[#d9cdb8] bg-transparent"
+      }`}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen((isOpen) => !isOpen)}
+        className={`flex w-full items-center justify-between gap-4 px-5 py-4 text-left ${
+          open ? "text-white" : "text-[#7a1f2c]"
+        }`}
+        aria-expanded={open}
+      >
+        <span className="text-sm font-semibold uppercase tracking-[0.18em]">
+          {cleanDisplayText(title)}
+        </span>
+        <FiArrowDown
+          className={`shrink-0 transition-transform ${
+            open ? "rotate-180" : ""
+          }`}
+        />
+      </button>
+
+      {open && (
+        <div className="space-y-6 px-5 pb-6 text-base leading-relaxed text-white">
+          {groups.map((group) => (
+            <div key={`${title}-${group.heading}`}>
+              <h3 className="mb-3 text-base font-semibold">
+                {group.heading}
+              </h3>
+              <ul className="list-disc space-y-2 pl-5">
+                {group.items.map((item, index) => (
+                  <li key={`${title}-${group.heading}-${index}`}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function FacultyDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
-
   const [faculty, setFaculty] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const fetchFaculty = async () => {
+      try {
+        const res = await getFacultyDetails(id);
+        setFaculty(res.data.data);
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchFaculty();
-  }, []);
-
-  const fetchFaculty = async () => {
-    try {
-      const res = await getFacultyDetails(id);
-
-      setFaculty(res.data.data);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [id]);
 
   if (loading) {
-    return (
-      <div className="p-5">
-        Loading...
-      </div>
-    );
+    return <div className="p-5 text-gray-600">Loading...</div>;
   }
 
   if (!faculty) {
-    return (
-      <div className="p-5">
-        Faculty not found
-      </div>
-    );
+    return <div className="p-5 text-gray-600">Faculty not found</div>;
   }
 
+  const category = cleanDisplayText(
+    faculty.facultyCategory || faculty.department,
+    "CORE FACULTY"
+  );
+  const name = cleanDisplayText(faculty.name);
+  const designation = cleanDisplayText(faculty.designation, "Faculty");
+  const biography = cleanDisplayText(
+    faculty.biography,
+    ""
+  );
+  const school = cleanDisplayText(
+    faculty.school || faculty.department,
+    "Alliance University"
+  );
+  const qualification = cleanDisplayText(
+    faculty.qualification,
+    "Qualification not available."
+  );
+  const qualifications = cleanArray(faculty.academicQualifications);
+  const researchInterests = cleanArray(faculty.researchInterests);
+  const publications = cleanArray(faculty.publications);
+  const storedProfileSections = faculty.profileSections || {};
+  const profileSections = Object.entries(storedProfileSections).sort(
+    ([firstTitle], [secondTitle]) =>
+      sectionOrder(firstTitle) - sectionOrder(secondTitle)
+  );
+  const introduction = formatIntroduction(
+    removeProfileSections(biography, storedProfileSections),
+    name
+  );
+  const sections = [
+    ...(faculty.experience && !storedProfileSections.Experience
+      ? [["Experience", faculty.experience]]
+      : []),
+    ...(qualifications.length &&
+    !Object.keys(storedProfileSections).some((title) =>
+      title.toLowerCase().includes("qualification")
+    )
+      ? [["Academic Qualifications", qualifications.join(" | ")]]
+      : []),
+    ...(researchInterests.length &&
+    !Object.keys(storedProfileSections).some((title) =>
+      title.toLowerCase().includes("research")
+    )
+      ? [["Research Interests", researchInterests.join(" | ")]]
+      : []),
+    ...(publications.length &&
+    !Object.keys(storedProfileSections).some(
+      (title) => title.toLowerCase() === "publications"
+    )
+      ? [["Publications", publications.join(" | ")]]
+      : []),
+    ...profileSections,
+  ];
+
   return (
-    <div className="min-h-screen bg-gray-50">
-
-      {/* Header */}
-
-      <div className="sticky top-0 bg-white border-b p-4 flex items-center gap-3">
-        <button onClick={() => navigate(-1)}>
-          <FiArrowLeft size={22} />
+    <div className="min-h-screen" style={{ background: "#e7dfd3" }}>
+      <div className="mx-auto max-w-7xl px-5 py-8 lg:px-10">
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
+          className="mb-6 inline-flex items-center gap-2 text-[#7b1e2d] hover:opacity-80"
+          aria-label="Go back"
+        >
+          <FiArrowLeft size={20} />
+          <span className="text-sm font-medium">Back</span>
         </button>
 
-        <h1 className="font-semibold">
-          Faculty Details
-        </h1>
-      </div>
-
-      {/* Profile */}
-
-      <div className="p-5 ">
-
-        <div className="bg-white rounded-2xl shadow-sm p-5 mb-4">  
-          {/* changed a css in above line  */}
-          
-
-          <div className="flex flex-col items-center">
-
+        <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-center">
+          <div className="shrink-0 rounded-lg border border-[#d9cdb8] bg-[#efe7dc] p-3 shadow-sm">
             <img
-              src={faculty.photo}
-              alt={faculty.name}
-              className="w-32 h-32 rounded-full object-cover border"
+              src={
+                faculty.photo ||
+                "https://placehold.co/500x500/efe7dc/3b2f2d?text=Faculty"
+              }
+              alt={name}
+              className="h-80 w-80 object-cover object-center md:h-90 md:w-90"
+              style={{ background: "#d7d0c7" }}
             />
-
-            <h2 className="text-xl font-bold mt-4 text-center">
-              {faculty.name}
-            </h2>
-
-            <p className="text-gray-600 text-center mt-1">
-              {faculty.designation}
-            </p>
-
-            <p className="text-sm text-blue-600 mt-2 text-center">
-              {faculty.department}
-            </p>
-
           </div>
 
+          <div className="max-w-205 flex-1">
+            <div className="mb-5 inline-block border-b border-[#7a1f2c] pb-1 text-[0.7rem] font-semibold uppercase tracking-[0.25em] text-[#7a1f2c]">
+              {category}
+            </div>
+
+            <h1 className="font-serif text-5xl font-medium leading-none tracking-tight text-[#1f1b1b] md:text-6xl">
+              {name}
+            </h1>
+
+            <p className="mt-4 text-xl text-[#3d3a39] md:text-2xl">
+              {designation}
+            </p>
+
+            {faculty.department && (
+              <p className="mt-1 text-base text-[#6a625c]">
+                {cleanDisplayText(faculty.department)}
+              </p>
+            )}
+
+            <div className="mt-8 text-lg leading-relaxed text-[#2a2929]">
+              <p>{introduction}</p>
+            </div>
+
+            <div className="mt-8">
+              <FacultyAcademicInfo
+                school={school}
+                qualification={qualification}
+              />
+            </div>
+
+            <FacultyLocation faculty={faculty} />
+
+            {sections.length > 0 && (
+              <section className="mt-8">
+                {sections
+                  .sort(([firstTitle], [secondTitle]) =>
+                    sectionOrder(firstTitle) - sectionOrder(secondTitle)
+                  )
+                  .map(([title, content], index) => (
+                  <FacultyAccordion
+                    key={`${title}-${index}`}
+                    title={title}
+                    content={content}
+                    items={
+                      title.toLowerCase() === "publications"
+                        ? publications
+                        : title.toLowerCase().includes("research")
+                          ? researchInterests
+                          : []
+                    }
+                  />
+                  ))}
+              </section>
+            )}
+          </div>
         </div>
-
-        {/* Room Info */}
-        
-
-        <div className="bg-white rounded-2xl p-6 shadow">
-  <h2 className="font-semibold text-lg mb-4">
-    Location Information
-  </h2>
-
-  <div className="space-y-3">
-
-    <p>
-      📍 Floor{" "}
-      {faculty.floorNumber || "Not Assigned"}
-    </p>
-
-    <p>
-      🚪 Room{" "}
-      {faculty.roomNumber || "Not Assigned"}
-    </p>
-
-    <p>
-      🏢 Cabin{" "}
-      {faculty.cabinNumber || "Not Assigned"}
-    </p>
-
-  </div>
-</div>
-
-        {/* Qualification */}
-
-        <div className="bg-white rounded-2xl shadow-sm p-5 mt-4">
-
-          <h3 className="font-semibold mb-3">
-            Qualification
-          </h3>
-
-          <p className="text-gray-700">
-            {faculty.qualification || "Not Available"}
-          </p>
-
-        </div>
-
       </div>
-
     </div>
   );
 }
