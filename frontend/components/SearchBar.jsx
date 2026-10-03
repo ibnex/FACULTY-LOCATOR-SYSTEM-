@@ -46,7 +46,7 @@ duration-200
         </span>
 
         <span className="text-xs text-[#6a625c]">
-          Search by name, department, or expertise
+          Search by name
         </span>
       </div>
     </button>
