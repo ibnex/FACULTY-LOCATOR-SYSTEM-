@@ -6,6 +6,32 @@ import { getFacultyDetails } from "../api/facultyApi";
 import FacultyAcademicInfo from "../components/FacultyAcademicInfo";
 import FacultyLocation from "../components/FacultyLocation";
 
+const FALLBACK_IMAGE = "https://placehold.co/500x500/efe7dc/3b2f2d?text=Faculty";
+
+const normalizeImageUrl = (value) => {
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return "";
+  }
+
+  try {
+    const resolved = new URL(trimmed, window.location.origin);
+
+    if (resolved.protocol === "http:" && window.location.protocol === "https:") {
+      return `https:${resolved.href.slice(6)}`;
+    }
+
+    return resolved.href;
+  } catch {
+    return trimmed;
+  }
+};
+
 const cleanDisplayText = (value, fallback = "Not Available") => {
   if (typeof value !== "string") {
     return fallback;
@@ -17,7 +43,6 @@ const cleanDisplayText = (value, fallback = "Not Available") => {
     .replace(/&amp;/gi, "&")
     .replace(/&quot;/gi, '"')
     .replace(/&#39;|&apos;/gi, "'")
-    .replace(/[{}<>[\]#$%^*_~=|`]/g, " ")
     .replace(/([!?]){2,}/g, "$1")
     .replace(/[+/@]{2,}/g, " ")
     .replace(/\s*([,;:.!?])\s*/g, "$1 ")
@@ -65,25 +90,27 @@ const removeProfileSections = (biography, profileSections) => {
 };
 
 const formatIntroduction = (biography, name) => {
-  if (!biography) {
+  const normalizedBiography = biography.replace(/^[\s,.;:!?-]+/, "").trim();
+
+  if (!normalizedBiography) {
     return "No biography available.";
   }
 
-  if (biography.toLowerCase().startsWith(name.toLowerCase())) {
-    return biography;
+  if (normalizedBiography.toLowerCase().startsWith(name.toLowerCase())) {
+    return normalizedBiography;
   }
 
-  const accomplishedStart = biography.match(
+  const accomplishedStart = normalizedBiography.match(
     /^.*?\b(is\s+(?:a|an)\s+highly accomplished\b)/i
   );
 
   if (accomplishedStart) {
-    return `${name} ${accomplishedStart[1]}${biography.slice(
+    return `${name} ${accomplishedStart[1]}${normalizedBiography.slice(
       accomplishedStart[0].length
     )}`;
   }
 
-  return `${name} ${biography}`;
+  return `${name} ${normalizedBiography}`;
 };
 
 const SECTION_HEADINGS = [
@@ -261,6 +288,7 @@ export default function FacultyDetails() {
     );
   }
 
+  const photoUrl = normalizeImageUrl(faculty.photo) || FALLBACK_IMAGE;
   const category = cleanDisplayText(
     faculty.facultyCategory || faculty.department,
     "CORE FACULTY"
@@ -332,11 +360,14 @@ export default function FacultyDetails() {
         <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-center">
           <div className="shrink-0 rounded-lg border border-[#d9cdb8] bg-[#efe7dc] p-3 shadow-sm">
             <img
-              src={
-                faculty.photo ||
-                "https://placehold.co/500x500/efe7dc/3b2f2d?text=Faculty"
-              }
+              src={photoUrl}
               alt={name}
+              loading="lazy"
+              decoding="async"
+              onError={(event) => {
+                event.currentTarget.onerror = null;
+                event.currentTarget.src = FALLBACK_IMAGE;
+              }}
               className="h-80 w-80 object-cover object-center md:h-90 md:w-90"
               style={{ background: "#d7d0c7" }}
             />

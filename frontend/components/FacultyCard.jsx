@@ -1,7 +1,34 @@
 import { useNavigate } from "react-router-dom";
 
+const FALLBACK_IMAGE = "https://placehold.co/500x500/efe7dc/3b2f2d?text=Faculty";
+
+const normalizeImageUrl = (value) => {
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return "";
+  }
+
+  try {
+    const resolved = new URL(trimmed, window.location.origin);
+
+    if (resolved.protocol === "http:" && window.location.protocol === "https:") {
+      return `https:${resolved.href.slice(6)}`;
+    }
+
+    return resolved.href;
+  } catch {
+    return trimmed;
+  }
+};
+
 export default function FacultyCard({ faculty }) {
   const navigate = useNavigate();
+  const photoUrl = normalizeImageUrl(faculty.photo) || FALLBACK_IMAGE;
 
   return (
     <div
@@ -20,8 +47,14 @@ export default function FacultyCard({ faculty }) {
     >
       <div className="flex items-center gap-3 sm:gap-4">
         <img
-          src={faculty.photo}
+          src={photoUrl}
           alt={faculty.name}
+          loading="lazy"
+          decoding="async"
+          onError={(event) => {
+            event.currentTarget.onerror = null;
+            event.currentTarget.src = FALLBACK_IMAGE;
+          }}
           className="h-16 w-16 shrink-0 rounded-lg object-cover sm:h-20 sm:w-20"
         />
 

@@ -83,6 +83,32 @@ const normalizeProfileUrl = (url) => {
   }
 };
 
+const normalizeImageUrl = (url) => {
+  if (!url || typeof url !== "string") {
+    return "";
+  }
+
+  const trimmed = url.trim();
+
+  if (!trimmed) {
+    return "";
+  }
+
+  if (trimmed.startsWith("//")) {
+    return `https:${trimmed}`;
+  }
+
+  if (/^https?:\/\//i.test(trimmed)) {
+    return trimmed.replace(/^http:/i, "https:");
+  }
+
+  try {
+    return new URL(trimmed, FACULTY_PAGE_URL).href;
+  } catch {
+    return trimmed;
+  }
+};
+
 const parseFacultyCards = (html) => {
   const $ = cheerio.load(html);
   const faculty = [];
@@ -98,9 +124,9 @@ const parseFacultyCards = (html) => {
       return;
     }
 
-    const photo =
-      element.find("img[src]").first().attr("src")?.trim() ||
-      "";
+    const photo = normalizeImageUrl(
+      element.find("img[src]").first().attr("src")
+    );
 
     const item = {
       name,
@@ -127,23 +153,14 @@ const extractProfileBiography = ($) => {
     return "";
   }
 
-  const label = cleanText(aboutContent.find(".about-label").first().text());
-  const title = cleanText(aboutContent.find(".about-title").first().text());
-  const subtitle = cleanText(
-    aboutContent.find(".about-subtitle").first().text()
-  );
+  const biographyContent = aboutContent.clone();
+  biographyContent
+    .find(".about-label, .about-title, .about-subtitle, .program-accordion")
+    .remove();
 
-  let biography = cleanText(aboutContent.text());
-
-  [label, title, subtitle].forEach((snippet) => {
-    if (!snippet) return;
-    biography = biography.replace(
-      new RegExp(`${escapeRegExp(snippet)}\\s*`, "gi"),
-      " "
-    );
-  });
-
-  return biography.replace(/\s+\*\s+/g, " ").trim();
+  return cleanText(biographyContent.text())
+    .replace(/\s+\*\s+/g, " ")
+    .trim();
 };
 
 const extractInstitutionName = (biography, fallback = "") => {
@@ -228,10 +245,11 @@ const parseFacultyProfile = async (cardFaculty) => {
     cardFaculty.designation;
   const biography = extractProfileBiography($);
   const profileSections = parseProfileSections($);
-  const photo =
+  const photo = normalizeImageUrl(
     $('meta[property="og:image"]').attr("content") ||
-    $('img[src*="faculty"]').first().attr("src") ||
-    cardFaculty.photo;
+      $('img[src*="faculty"]').first().attr("src") ||
+      cardFaculty.photo
+  );
 
   const cleanedProfile = {
     name,

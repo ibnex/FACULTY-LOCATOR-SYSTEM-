@@ -18,7 +18,7 @@ router.get("/", getAllFaculty);
 
 router.get("/scrape", scrapeFacultyData);
 router.get("/enrich", enrichFacultyData);
-router.get("/search", searchFacultyController);
+router.get("`/search`", searchFacultyController);
 router.get("/suggestions", getSuggestionsController);
 router.get("/search-stats", getSearchStats);
 router.get("/popular-searches", getPopularSearches);
