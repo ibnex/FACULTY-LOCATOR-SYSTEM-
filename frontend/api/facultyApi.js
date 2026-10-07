@@ -1,9 +1,9 @@
 import axios from "axios";
-const API_URL = import.meta.env.VITE_API_URL;
+
+const DEFAULT_API_URL = "http://localhost:5000";
+const API_URL = (import.meta.env.VITE_API_URL || DEFAULT_API_URL).replace(/\/$/, "");
 const API = axios.create({
-  baseURL:
-    API_URL + "/api/faculty",
-    // "http://192.168.1.10:5173/api/faculty",
+  baseURL: `${API_URL}/api/faculty`,
 });
 
 export const getFaculty = (
@@ -23,48 +23,14 @@ export const getFaculty = (
   return API.get(requestUrl);
 };
 
-export const searchFaculty = (
-  query,
-  department = ""
-) =>
-  API.get(
-    `/search?q=${encodeURIComponent(query)}&department=${encodeURIComponent(
-      department
-    )}`
-  );
+export const searchFaculty = (query) =>
+  API.get(`/search?q=${encodeURIComponent(query)}`);
 
-export const getSuggestions = (
-  query,
-  department = ""
-) =>
-  API.get(
-    `/suggestions?q=${encodeURIComponent(query)}&department=${encodeURIComponent(
-      department
-    )}`
-  );
+export const getSuggestions = (query, config = {}) =>
+  API.get(`/suggestions?q=${encodeURIComponent(query)}`, config);
 
 export const getPopularSearches = () =>
   API.get("/popular-searches");
 
-export const getDepartments = () =>
-  API.get("/departments");
-
-export const getFacultyByDepartment = (
-  department
-) =>
-  API.get(
-    `/department/${encodeURIComponent(
-      department
-    )}`
-  );
-
 export const getFacultyDetails = (id) =>
   API.get(`/${id}`);
-
-export const filterFaculty = (
-  department,
-  designation
-) =>
-  API.get(
-    `/filter?department=${department}&designation=${designation}`
-  );

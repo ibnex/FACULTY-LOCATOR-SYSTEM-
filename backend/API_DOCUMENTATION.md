@@ -14,7 +14,7 @@ GET /search?q=vivek
 
 ### Description
 
-Performs fuzzy search on faculty names and keywords.
+Performs fuzzy search on faculty names.
 
 ### Example
 
@@ -43,35 +43,7 @@ Returns faculty suggestions while typing.
 
 ---
 
-## 3. Get All Departments
-
-### Request
-
-GET /departments
-
-### Description
-
-Returns all unique departments available in the database.
-
----
-
-## 4. Get Faculty By Department
-
-### Request
-
-GET /department/:department
-
-### Example
-
-GET /department/Alliance%20School%20of%20Advanced%20Computing
-
-### Description
-
-Returns all faculty belonging to a specific department.
-
----
-
-## 5. Faculty Details
+## 3. Faculty Details
 
 ### Request
 
@@ -83,29 +55,7 @@ Returns complete faculty information using faculty id.
 
 ---
 
-## 6. Filter Faculty
-
-### Request
-
-GET /filter
-
-### Query Parameters
-
-department
-
-designation
-
-### Example
-
-GET /filter?department=Alliance School of Advanced Computing
-
-GET /filter?designation=Professor
-
-GET /filter?department=Alliance School of Advanced Computing&designation=Professor
-
----
-
-## 7. Pagination
+## 4. Pagination
 
 ### Request
 
@@ -126,7 +76,7 @@ Returns paginated faculty records.
 
 ---
 
-## 8. Popular Searches
+## 5. Popular Searches
 
 ### Request
 
@@ -138,7 +88,7 @@ Returns top searched keywords.
 
 ---
 
-## 9. Search Statistics
+## 6. Search Statistics
 
 ### Request
 
@@ -150,7 +100,7 @@ Returns overall search analytics.
 
 ---
 
-## 10. Excel Import
+## 7. Excel Import
 
 ### Request
 

@@ -5,8 +5,16 @@ const searchCache = new Map();
 const pendingCacheLoads = new Map();
 const fuseCache = new Map();
 
-const getCachedFaculty = async (department = "") => {
-  const cacheKey = department || "__all__";
+const normalizeSearchQuery = (query) => {
+  if (typeof query !== "string") {
+    return "";
+  }
+
+  return query.trim();
+};
+
+const getCachedFaculty = async () => {
+  const cacheKey = "__all__";
   const cached = searchCache.get(cacheKey);
 
   if (cached) {
@@ -17,8 +25,8 @@ const getCachedFaculty = async (department = "") => {
     return pendingCacheLoads.get(cacheKey);
   }
 
-  const filter = department ? { department } : {};
-  const loadPromise = Faculty.find(filter)
+  const loadPromise = Faculty.find({})
+    .select("_id name designation department photo roomNumber")
     .lean()
     .then((faculties) => {
       searchCache.set(cacheKey, {
@@ -59,26 +67,28 @@ const getNameIndex = async () => {
   return fuse;
 };
 
-export const searchFaculty = async (
-  query,
-  department = ""
-) => {
+export const searchFaculty = async (query) => {
+  const normalizedQuery = normalizeSearchQuery(query);
+
+  if (!normalizedQuery) {
+    return [];
+  }
+
   const fuse = await getNameIndex();
+  const results = fuse.search(normalizedQuery);
 
-  const results = fuse.search(query);
-
-  return results.map(
-    (result) => result.item
-  );
+  return [...new Map(results.map((result) => [String(result.item._id), result.item])).values()];
 };
 
-export const getSuggestions = async (
-  query,
-  department = ""
-) => {
-  const fuse = await getNameIndex();
+export const getSuggestions = async (query) => {
+  const normalizedQuery = normalizeSearchQuery(query);
 
-  const results = fuse.search(query);
+  if (!normalizedQuery) {
+    return [];
+  }
+
+  const fuse = await getNameIndex();
+  const results = fuse.search(normalizedQuery);
 
   return results
     .slice(0, 10)

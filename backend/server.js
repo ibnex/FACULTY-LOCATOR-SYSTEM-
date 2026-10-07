@@ -8,6 +8,11 @@ import { getSuggestions, warmSearchCache } from "./search/searchService.js";
 
 dotenv.config();
 
+const allowedOrigins = (process.env.FRONTEND_URL || "http://localhost:5173,http://127.0.0.1:5173")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 await connectDB();
 await warmSearchCache()
   .then(() => getSuggestions("v"))
@@ -17,11 +22,18 @@ await warmSearchCache()
 
 const app = express();
 
-// app.use(cors());
 app.use(
-    cors({
-        origin: process.env.FRONTEND_URL
-    })
+  cors({
+    origin(origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error("Not allowed by CORS"));
+    },
+    credentials: true,
+  })
 );
 app.use(express.json());
 

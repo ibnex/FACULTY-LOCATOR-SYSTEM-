@@ -8,13 +8,8 @@ import {
   enrichFacultyData,
   getSuggestionsController,
   getPopularSearches,
-  getDepartments,
-  getFacultyByDepartment,
   getSearchStats,
-  getFacultyById,
-  filterFaculty
-
-
+  getFacultyById
 } from "../controllers/facultyController.js";
 
 const router = express.Router();
@@ -27,11 +22,6 @@ router.get("/search", searchFacultyController);
 router.get("/suggestions", getSuggestionsController);
 router.get("/search-stats", getSearchStats);
 router.get("/popular-searches", getPopularSearches);
-router.get("/departments", getDepartments);
-router.get("/department/:department",getFacultyByDepartment);
-router.get("/filter", filterFaculty);
-
-
 
 router.post("/import-excel",upload.single("file"),importFacultyExcel);
 router.get("/:id", getFacultyById);

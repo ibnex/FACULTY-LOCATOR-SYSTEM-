@@ -36,9 +36,12 @@ export default function SearchOverlay({
     }
 
     setLoadingSuggestions(true);
+    const controller = new AbortController();
     const timer = setTimeout(async () => {
       try {
-        const res = await getSuggestions(currentQuery);
+        const res = await getSuggestions(currentQuery, {
+          signal: controller.signal,
+        });
 
         if (currentRequestId === requestId.current) {
           const nextSuggestions = res.data.data || [];
@@ -48,6 +51,10 @@ export default function SearchOverlay({
           setLoadingSuggestions(false);
         }
       } catch (error) {
+        if (controller.signal.aborted) {
+          return;
+        }
+
         if (currentRequestId === requestId.current) {
           setSuggestions([]);
           setHasSearched(true);
@@ -55,9 +62,12 @@ export default function SearchOverlay({
         }
         console.error(error);
       }
-    }, 120);
+    }, 80);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
   }, [isOpen, query]);
   /* eslint-enable react-hooks/set-state-in-effect */
 

@@ -49,11 +49,14 @@ export const getAllFaculty = async (req, res) => {
 
     const skip = (page - 1) * limit;
 
-    const total = await Faculty.countDocuments();
-
-    const faculty = await Faculty.find()
-      .skip(skip)
-      .limit(limit);
+    const [total, faculty] = await Promise.all([
+      Faculty.countDocuments(),
+      Faculty.find({})
+        .select("_id name designation department photo roomNumber")
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+    ]);
 
     res.status(200).json({
       success: true,
@@ -81,9 +84,6 @@ export const searchFacultyController = async (
       ? req.query.q.trim()
       : "";
 
-    const department =
-      req.query.department || "";
-
     if (!query || !query.trim()) {
       return res.status(400).json({
         success: false,
@@ -93,10 +93,7 @@ export const searchFacultyController = async (
     }
 
     const results =
-      await searchFaculty(
-        query,
-        department
-      );
+      await searchFaculty(query);
 
     await SearchHistory.create({
       query: query.toLowerCase(),
@@ -143,9 +140,6 @@ export const getSuggestionsController = async (
       ? req.query.q.trim()
       : "";
 
-    const department =
-      req.query.department || "";
-
     if (query.length < 1) {
       return res.status(400).json({
         success: false,
@@ -154,10 +148,7 @@ export const getSuggestionsController = async (
     }
 
     const suggestions =
-      await getSuggestions(
-        query,
-        department
-      );
+      await getSuggestions(query);
 
     res.status(200).json({
       success: true,
@@ -203,48 +194,6 @@ export const getPopularSearches = async (req, res) => {
   }
 };
 
-
-export const getDepartments = async (req, res) => {
-  try {
-    const departments = await Faculty.distinct("department");
-
-    departments.sort();
-
-    res.status(200).json({
-      success: true,
-      count: departments.length,
-      data: departments,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-};
-
-export const getFacultyByDepartment = async (req, res) => {
-  try {
-    const department = decodeURIComponent(
-      req.params.department
-    );
-
-    const faculty = await Faculty.find({
-      department,
-    });
-
-    res.status(200).json({
-      success: true,
-      count: faculty.length,
-      data: faculty,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-};
 
 export const importFacultyExcel = async (req, res) => {  //pendinng work
   try {
@@ -356,38 +305,6 @@ export const getSearchStats = async (req, res) => {
         totalResultsReturned:
           totalResults.length > 0 ? totalResults[0].total : 0,
       },
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-};
-
-export const filterFaculty = async (req, res) => {
-  try {
-    const { department, designation } = req.query;
-
-    const filter = {};
-
-    if (department) {
-      filter.department = department;
-    }
-
-    if (designation) {
-      filter.designation = {
-        $regex: designation,
-        $options: "i",
-      };
-    }
-
-    const faculty = await Faculty.find(filter);
-
-    res.status(200).json({
-      success: true,
-      count: faculty.length,
-      data: faculty,
     });
   } catch (error) {
     res.status(500).json({
